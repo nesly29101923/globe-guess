@@ -1,0 +1,9 @@
+{
+  "_comment": "Hand overrides for the game data. exclude_questions: ids never asked in scored questions (still drawn on the map). names: display-name fixes. tiers / flag_tiers: tier corrections.",
+  "exclude_questions": ["TW", "XK", "EH", "PS", "GL"],
+  "exclude_reason": "Disputed or non-sovereign territories stay out of scored questions in version 1 (02-GAME-DESIGN.md, Sensitive content).",
+  "names": {},
+  "tiers": {},
+  "flag_tiers": {},
+  "state_tiers": {}
+}

@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "Globe Guess",
+    "slug": "globe-guess",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.trendforge.globeguess",
+      "requireFullScreen": true,
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "Your data is used to show ads that are more relevant to you.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.trendforge.globeguess",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#C2DEF5",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-audio",
+      "expo-font",
+      "expo-sharing",
+      "expo-localization",
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "color": "#7C3AED"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "delayAppMeasurementInit": true,
+          "userTrackingUsageDescription": "Your data is used to show ads that are more relevant to you."
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Your data is used to show ads that are more relevant to you."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#C9E2F6"
+        }
+      ]
+    ],
+    "scheme": "globeguess",
+    "backgroundColor": "#C9E2F6",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

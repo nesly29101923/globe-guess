@@ -1,0 +1,73 @@
+# Handoff: Globe Guess
+
+The playable version of the TrendForge map & flag trivia videos. Expo (SDK 58) + React Native + TypeScript, iOS and
+Android, fully offline, no account.
+
+## Run it
+
+```bash
+npm install                     # also copies canvaskit.wasm for the web preview
+npm run web                     # quickest look, in a browser
+npx expo run:android            # dev build on an emulator/phone (needs Android Studio)
+npx expo run:ios                # dev build on the simulator (needs Xcode on a Mac)
+npm test && npm run typecheck   # logic tests and types
+npm run sim                     # economy report -> tools/balance_sim/REPORT.md
+```
+
+Expo Go will not work (ads and purchases need native code): use a development build (`expo run:*` or
+`npx eas-cli build --profile development`). Game data is already generated; to rebuild it from the studio, put
+`guessyourflag` next to this folder and run `npm run build:data`.
+
+## What was built
+
+- **The round** (the video, playable): camera flies to the target, title card + chips, progress dots, timer ring with
+  tick-tock that speeds up and goes green -> amber -> red, 2x2 answers with the timer between them, instant feedback
+  (motion, sound, haptic), combo x1-x5 with rising pitch and a flame, a miss always shows the right answer on the map.
+- **Result screen in beats**: score count-up, stars, coins and XP flying to the counters, XP bar, level-up / chest /
+  streak / region celebrations, new Atlas cards flipping, mission ticks, near-miss line, big "Next level", share, double coins.
+- **Modes**: first round (straight in, no menu) -> Journey (11 chapters, 110 levels, bosses, chests, hearts),
+  Daily Challenge (level 2), Quick Play (level 3), Survival (level 5).
+- **Meta**: player levels, Atlas (countries, flags, states; bronze/silver/gold mastery), streak with freezes, milestones
+  and repair, login calendar, daily missions, power-ups with free teaching moments, shop (power-ups, items, 7 map themes,
+  4 button styles, coin packs, Remove Ads, Starter Pack), settings, local reminders.
+- **Content**: 194 countries, 194 flags, 50 US states, all tiered by the studio's difficulty data. Disputed territories are
+  out of scored questions (`tools/build_game_data/overrides.json`).
+- **Money & data**: ads, purchases, analytics and remote config behind `src/services/`, with fakes until keys exist.
+  All analytics events from `docs/05-MONEY-AND-ANALYTICS.md` are sent.
+
+Decisions and their reasons: `DECISIONS.md`. State of the work and the self-review: `PROGRESS.md`.
+
+## Only a person can do this
+
+1. **Try it on a real mid-range Android phone** and an iPhone: check 60 fps during questions, haptics, sound with the
+   ringer off/on, and the notch/home indicator. The web preview here only had software rendering.
+2. **Name check**: "Globe Guess" — search the App Store / Play Store and trademarks before committing
+   (`src/config/app.ts`, `app.json`). Runners-up are in `DECISIONS.md`.
+3. **Channel handle** for the share card: set `channelHandle` in `src/config/app.ts`.
+4. **Store accounts**: Apple Developer + Google Play Console; set the bundle id/package (`com.trendforge.globeguess`
+   in `app.json`) to the one you register; `npx eas-cli login`, `npx eas-cli build --profile production`.
+5. **AdMob**: create the app and one rewarded + one interstitial unit per platform; put the **app IDs** into
+   `app.json` (they are Google's public sample IDs now) and the **unit IDs** into `src/config/keys.ts`. Add mediation
+   later if wanted. Keep "child-directed" off and don't enrol in "Designed for Families".
+6. **RevenueCat**: create products `remove_ads` (non-consumable), `starter_pack`, `coins_s`, `coins_m`, `coins_l`,
+   `coins_xl` (consumables) in both stores at the prices in `src/config/cosmetics.ts`, connect them in RevenueCat, put the
+   public SDK keys in `src/config/keys.ts`.
+7. **Firebase Analytics**: add the Firebase apps, then implement `AnalyticsProvider` (`src/services/analytics.ts`) with
+   `@react-native-firebase/analytics` and register it in `src/services/real.native.ts`.
+8. **Privacy policy**: fill `[COMPANY]/[EMAIL]/[DATE]` in `docs/PRIVACY.md`, host it, put the URL in
+   `src/app/settings.tsx` (`PRIVACY_URL`) and in both store listings; fill the store data-safety / privacy forms (ads id,
+   analytics, purchases).
+9. **Store listing**: text in `store/listing.md`, screenshots in `store/screenshots/` (1284x2778), icon `assets/icon.png`.
+10. **Video link (later)**: the quiz definition is a plain data object, and the app has the `globeguess://` scheme;
+   "today's video quiz" from the hub can be added as a route that builds a quiz from item ids.
+
+## Where to change things
+
+| Change | File |
+|---|---|
+| Rewards, prices, timers, XP curve, ad pacing, hearts | `src/config/balance.ts` (then `npm run sim`) |
+| Chapters, levels, Daily recipe, Quick Play topics | `src/config/levels.ts` |
+| Themes, button styles, store products | `src/config/cosmetics.ts` |
+| Colours, fonts, motion timings | `src/theme/index.ts` |
+| All text | `src/i18n/strings.ts` |
+| Exclusions, name fixes, tier corrections | `tools/build_game_data/overrides.json` (then `npm run build:data`) |

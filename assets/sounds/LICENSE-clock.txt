@@ -1,0 +1,3 @@
+clock_tick.wav, clock_tock.wav
+  Cut from "Clock" (tick and tack x9), BigSoundBank sound #0007 - https://bigsoundbank.com/detail-0007-clock.html
+  Licence: CC0 1.0 (public domain) - https://creativecommons.org/publicdomain/zero/1.0/  (attribution not required)
