@@ -64,7 +64,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#C9E2F6"
         }
-      ]
+      ],
+      "./plugins/withGradleMemory"
     ],
     "scheme": "globeguess",
     "backgroundColor": "#C9E2F6",

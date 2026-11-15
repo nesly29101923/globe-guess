@@ -64,3 +64,4 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - **Menu music**: a very light synthesised loop, off by default (Settings > Music); never during a round, where the tick-tock carries the tension.
 - **Hearts stay on** after self-review: only failed Journey levels cost one, every other mode stays open, and `balance.hearts.enabled = false` turns them off with nothing else depending on them. Watch the day-1 data: if many players hit 0 hearts, turn them off.
 - **Android builds only compile the CPU types phones use**: arm64 for development/preview, arm64 + armv7 for production (`eas.json`). Building Skia's C++ for all four ABIs ran the free EAS worker out of memory.
+- **Android builds run with 2 Gradle workers, no parallel projects and a 3 GB heap** (`plugins/withGradleMemory.js`): the default settings had the free EAS build machine kill Gradle out of memory.
