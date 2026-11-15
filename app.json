@@ -65,7 +65,8 @@
           "backgroundColor": "#C9E2F6"
         }
       ],
-      "./plugins/withGradleMemory"
+      "./plugins/withGradleMemory",
+      "./plugins/withProguardKeep"
     ],
     "scheme": "globeguess",
     "backgroundColor": "#C9E2F6",
