@@ -31,3 +31,4 @@
   (5-15 fps there). The map is built for it (static land layer, levels of detail, fine detail only near the target),
   but it must be checked on a real phone.
 - Native builds were generated (`expo prebuild`) but not compiled: no Android SDK or Xcode here.
+- Round 2: haptics, dark mode, pause/settings, level rewards, result scroll fix (31 tests pass).

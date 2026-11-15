@@ -23,9 +23,11 @@ import { warmScene } from '../map/shapes';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
 import { useGame } from '../store/store';
-import { colors, layout, map as M, mapThemes, motion, radius, shadow } from '../theme';
+import { colors, layout, map as M, mapThemes, motion, radius, shadow, type Palette } from '../theme';
 import { survivalBatch } from './quizFactory';
 import { SecondChanceSheet } from './SecondChanceSheet';
+import { PauseSheet } from './PauseSheet';
+import { useIsDark, usePalette, useStyles } from '../theme/usePalette';
 
 type Phase = 'fly' | 'ask' | 'offer' | 'reveal' | 'done';
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -33,12 +35,16 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 export type RoundResult = { answers: Answer[]; quiz: QuizDef; powerupsUsed: number; durationMs: number };
 
 export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDef; onDone: (r: RoundResult) => void; onQuit: () => void }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW, height: SH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const save = useGame((g) => g.save);
   const update = useGame((g) => g.update);
   const W = Math.min(SW, layout.maxWidth);
-  const theme = mapThemes[COSMETICS.find((c) => c.id === save.cosmetics.mapTheme)?.theme ?? 'classic'] ?? mapThemes.classic;
+  const dark = useIsDark();
+  const chosen = COSMETICS.find((c) => c.id === save.cosmetics.mapTheme)?.theme ?? 'classic';
+  const theme = mapThemes[chosen === 'classic' && dark ? 'night' : chosen] ?? mapThemes.classic;
 
   // ---- layout (portrait, answers in thumb reach)
   const top = insets.top + 8;
@@ -203,25 +209,51 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     timerP.value = ms / total;
     timerP.value = withTiming(0, { duration: ms, easing: Easing.linear });
     const end = Date.now() + ms;
+    timerEnd.current = end;
     let lastBeat = 0;
+    let lastShown = -1;
     let beatN = 0;
     if (tickTimer.current) clearInterval(tickTimer.current);
     tickTimer.current = setInterval(() => {
       const left = end - Date.now();
-      setSecondsLeft(Math.ceil(left / 1000));
+      const sec = Math.ceil(left / 1000);
+      if (sec !== lastShown) {
+        lastShown = sec;
+        setSecondsLeft(sec);
+      }
       const fast = left <= balance.round.tickTockFastAt * 1000;
       const every = fast ? 250 : 500;
       if (Date.now() - lastBeat >= every) {
         lastBeat = Date.now();
         play(beatN++ % 2 ? 'tock' : 'tick');
-        if (fast) haptic.tick();
       }
       if (left <= 0) {
         if (tickTimer.current) clearInterval(tickTimer.current);
         tickTimer.current = null;
         answer(null);
       }
-    }, 50);
+    }, 100);
+  };
+
+  const [paused, setPaused] = useState(false);
+  const timerEnd = useRef(0);
+  const pausedLeft = useRef(0);
+  const pause = () => {
+    if (phaseRef.current !== 'ask') {
+      setPaused(true);
+      return;
+    }
+    pausedLeft.current = Math.max(500, timerEnd.current - Date.now());
+    if (!frozenRef.current) stopTimer();
+    setPaused(true);
+  };
+  const resume = () => {
+    setPaused(false);
+    if (phaseRef.current === 'ask' && !frozenRef.current && pausedLeft.current > 0) {
+      askStart.current = Date.now() - (quiz.timer * 1000 - pausedLeft.current);
+      runTimer(pausedLeft.current);
+    }
+    pausedLeft.current = 0;
   };
 
   const stopTimer = () => {
@@ -263,7 +295,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     if (right) {
       playCorrect(newCombo);
       haptic.success();
-      if (newCombo >= 3) haptic.medium();
       setScorePop({ v: sc, k: idx });
     } else {
       play(k === null ? 'timeout' : 'wrong');
@@ -406,7 +437,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
       return free ? { ...after, taught: { ...after.taught, [id]: true } } : after;
     });
     setTeach(null);
-    haptic.medium();
     if (id === 'fiftyFifty') {
       setUsedFifty(true);
       const wrongs = [0, 1, 2, 3].filter((i) => i !== q.answer && states[i] !== 'removed');
@@ -470,8 +500,11 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
           <ProgressDots total={quiz.questions.length} index={idx} results={results} />
         )}
       </View>
+      <Press onPress={pause} style={[st.close, { top: top + 4, right: (SW - W) / 2 + 4 }]} testID="pause">
+        <View style={[st.closeInner, shadow.soft]}><T size={13} weight="black" color={colors.inkSoft}>⚙</T></View>
+      </Press>
       {quiz.mode !== 'first' ? (
-        <Press onPress={onQuit} style={[st.close, { top: top + 4, left: (SW - W) / 2 + 4 }]} testID="quit">
+        <Press onPress={pause} style={[st.close, { top: top + 4, left: (SW - W) / 2 + 4 }]} testID="quit">
           <View style={[st.closeInner, shadow.soft]}><T size={14} weight="black" color={colors.inkSoft}>✕</T></View>
         </Press>
       ) : null}
@@ -548,12 +581,15 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
         <SecondChanceSheet onPick={onSecondChance} items={s.powerups.secondChance} free={!s.taught.secondChance && s.level >= balance.powerupTeachAtLevel.secondChance}
           adOk={secondChanceUsedRound < balance.ads.rewardedSecondChancePerRound && ads.rewardedReady() && !useGame.getState().session.firstSession} />
       ) : null}
+      {paused ? <PauseSheet onResume={resume} onQuit={quiz.mode === 'first' ? undefined : onQuit} /> : null}
       {offerContinue ? <SecondChanceSheet survival onPick={(h) => onContinue(h === 'ad')} items={0} free={false} adOk /> : null}
     </View>
   );
 }
 
 function ScorePop({ value, combo, y }: { value: number; combo: number; y: number }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const v = useSharedValue(0);
   useEffect(() => {
     v.value = withSequence(withSpring(1, motion.spring), withTiming(1, { duration: 500 }), withTiming(2, { duration: 300 }));
@@ -570,13 +606,13 @@ function ScorePop({ value, combo, y }: { value: number; combo: number; y: number
   );
 }
 
-const st = StyleSheet.create({
+const make_st = (colors: Palette) => StyleSheet.create({
   col: { position: 'absolute', paddingHorizontal: 12 },
   lives: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
   close: { position: 'absolute', zIndex: 5 },
-  closeInner: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  closeInner: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   flagWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  namePrompt: { backgroundColor: colors.white, borderRadius: radius.xl, paddingHorizontal: 22, paddingVertical: 14, maxWidth: '86%' },
+  namePrompt: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 22, paddingVertical: 14, maxWidth: '86%' },
   pillWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   comboWrap: { position: 'absolute', width: 90, height: 70, alignItems: 'center', justifyContent: 'center' },
   grid: { position: 'absolute', gap: 10 },

@@ -4,9 +4,10 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { play } from '../feedback/sfx';
 import { fmt, t } from '../i18n/strings';
-import { colors, motion, radius, shadow } from '../theme';
+import { colors, motion, radius, shadow, type Palette } from '../theme';
 import { fx } from './fx';
 import { Dot, Press, ProgressBar, T } from './ui';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 /** A number that counts to its value instead of jumping. */
 export function useCountUp(target: number, ms: number = motion.countUp, sound = false): number {
@@ -17,26 +18,26 @@ export function useCountUp(target: number, ms: number = motion.countUp, sound = 
     const a = from.current;
     if (a === target) return;
     let last = 0;
-    let raf: ReturnType<typeof setTimeout>;
+    let raf = 0;
     const step = () => {
       const k = Math.min(1, (Date.now() - start) / ms);
       const e = 1 - Math.pow(1 - k, 3);
       const cur = Math.round(a + (target - a) * e);
       setV(cur);
-      if (sound && Date.now() - last > 60 && k < 1) {
+      if (sound && Date.now() - last > 120 && k < 1) {
         last = Date.now();
         play('count');
       }
-      if (k < 1) raf = setTimeout(step, 16);
+      if (k < 1) raf = requestAnimationFrame(step);
       else from.current = target;
     };
     step();
-    return () => clearTimeout(raf);
+    return () => cancelAnimationFrame(raf);
   }, [target, ms, sound]);
   return v;
 }
 
-export function CountUp({ value, size = 40, color = colors.ink, ms, sound, weight = 'black' }: {
+export function CountUp({ value, size = 40, color, ms, sound, weight = 'black' }: {
   value: number; size?: number; color?: string; ms?: number; sound?: boolean; weight?: 'black' | 'bold' | 'xbold';
 }) {
   const v = useCountUp(value, ms, sound);
@@ -45,6 +46,8 @@ export function CountUp({ value, size = 40, color = colors.ink, ms, sound, weigh
 
 /** Coin pill. Registers itself as the target for flying coins. */
 export function CoinPill({ value, onPress, bumpKey, testID }: { value: number; onPress?: () => void; bumpKey?: number; testID?: string }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const ref = useRef<React.ComponentRef<typeof View>>(null);
   const s = useSharedValue(1);
   const shown = useCountUp(value, 500);
@@ -67,6 +70,8 @@ export function CoinPill({ value, onPress, bumpKey, testID }: { value: number; o
 }
 
 export function LevelBadge({ level, xp, need, onPress, compact }: { level: number; xp: number; need: number; onPress?: () => void; compact?: boolean }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const ref = useRef<React.ComponentRef<typeof View>>(null);
   const onLayout = () => ref.current?.measureInWindow((x, y, w, h) => fx.setTarget('xp', { x: x + 18, y: y + h / 2 }));
   return (
@@ -85,6 +90,8 @@ export function LevelBadge({ level, xp, need, onPress, compact }: { level: numbe
 }
 
 export function HeartsPill({ count, max, nextIn, onPress }: { count: number; max: number; nextIn: string | null; onPress?: () => void }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <Press onPress={onPress} disabled={!onPress}>
       <View style={[st.pill, shadow.soft]}>
@@ -97,6 +104,8 @@ export function HeartsPill({ count, max, nextIn, onPress }: { count: number; max
 }
 
 export function IconButton({ icon, onPress, dot, testID, label }: { icon: string; onPress: () => void; dot?: boolean; testID?: string; label?: string }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <Press onPress={onPress} testID={testID}>
       <View style={[st.icon, shadow.soft]}>
@@ -108,11 +117,11 @@ export function IconButton({ icon, onPress, dot, testID, label }: { icon: string
   );
 }
 
-const st = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.white, borderRadius: radius.pill, paddingHorizontal: 12, height: 40 },
+const make_st = (colors: Palette) => StyleSheet.create({
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, height: 40 },
   coin: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FCD34D' },
   plus: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.correct, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
-  level: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.white, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 12, height: 40 },
+  level: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface, borderRadius: radius.pill, paddingLeft: 4, paddingRight: 12, height: 40 },
   lvCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  icon: { width: 52, height: 52, borderRadius: radius.lg, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 52, height: 52, borderRadius: radius.lg, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
 });

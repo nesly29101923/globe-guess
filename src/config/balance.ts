@@ -22,9 +22,9 @@ export const balance = {
     correctCoins: 2,
     correctXp: 10,
     finishCoins: 5,
-    finishXp: 20,
+    finishXp: 10,
     starFirstCoins: [5, 10, 20],         // 1st, 2nd, 3rd star of a level, each paid once
-    starFirstXp: [0, 20, 40],
+    starFirstXp: [0, 10, 20],
     replayCoinShare: 0.25,               // replay with no new star
     replayFullXpPerDay: 3,               // full XP for the first replays per day, then half
     replayXpShareAfter: 0.5,
@@ -40,7 +40,7 @@ export const balance = {
     survivalSoftCap: 50,                 // above it, a quarter of the value
     softCapShare: 0.25,
     newCardCoins: 5,
-    newCardXp: 5,
+    newCardXp: 2,
     regionCompleteCoins: 250,
     regionCompleteXp: 100,
     quickPlayCoinShare: 1.0,
@@ -91,7 +91,7 @@ export const balance = {
   },
 
   // XP to go from level L to L+1: 75 + 3*x*sqrt(x)*(2 + 0.05*x), x = L-1, rounded to 5 (see xpTable()).
-  xp: { base: 75, a: 3, b: 2, c: 0.05, maxLevel: 100 },
+  xp: { base: 100, a: 3, b: 2, c: 0.05, maxLevel: 100 },
 
   atlas: {
     masteryDays: [1, 3, 6],              // distinct days with a right answer: bronze, silver, gold
@@ -109,7 +109,38 @@ export const balance = {
   powerupTeachAtLevel: { fiftyFifty: 3, freeze: 4, skip: 6, secondChance: 5 },
 
   unlocks: { dailyChallenge: 2, quickPlay: 3, survival: 5, shop: 2 },
+
+  /** Something to look forward to at every level: unlocks, gifts, titles; a chest every 5 levels. */
+  levelRewards: {
+    2: { unlock: 'daily' },
+    3: { unlock: 'quick' },
+    4: { powerups: { secondChance: 1, skip: 1 } },
+    5: { unlock: 'survival' },
+    6: { cosmetic: 'mint' },
+    7: { title: 'explorer' },
+    8: { cosmetic: 'btn_bubble' },
+    9: { powerups: { fiftyFifty: 2, freeze: 2 } },
+    10: { coins: 300, title: 'navigator', chest: true },
+    12: { streakFreeze: 1 },
+    15: { coins: 500, title: 'cartographer', chest: true },
+    20: { coins: 750, title: 'globetrotter', chest: true },
+    25: { coins: 1000, chest: true },
+    30: { coins: 1000, title: 'atlas_master', chest: true },
+    40: { coins: 1500, chest: true },
+    50: { coins: 2000, title: 'world_legend', chest: true },
+  } as Record<number, LevelReward>,
+
 } as const;
+
+export type LevelReward = {
+  unlock?: 'daily' | 'quick' | 'survival';
+  coins?: number;
+  powerups?: Partial<Record<'fiftyFifty' | 'freeze' | 'skip' | 'secondChance', number>>;
+  cosmetic?: string;
+  title?: string;
+  streakFreeze?: number;
+  chest?: boolean;
+};
 
 export type Balance = typeof balance;
 

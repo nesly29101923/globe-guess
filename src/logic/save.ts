@@ -31,7 +31,7 @@ export type SaveState = {
   daily: { results: Record<string, { score: number; correct: number; grid: string }> };
   best: Record<string, number>;
   cosmetics: { owned: string[]; mapTheme: string; buttonStyle: string; title: string | null; titles: string[] };
-  settings: { sound: boolean; music: boolean; haptics: boolean; notifications: boolean };
+  settings: { sound: boolean; music: boolean; haptics: boolean; notifications: boolean; appearance: 'system' | 'light' | 'dark' };
   ads: { removed: boolean; removedUntil: number; lastInterstitialAt: number; roundsSinceInterstitial: number;
     freeCoins: { day: string | null; count: number } };
   shop: { starterBought: boolean; starterShownDay: string | null };
@@ -64,7 +64,7 @@ export function newSave(now: number): SaveState {
     daily: { results: {} },
     best: {},
     cosmetics: { owned: ['classic', 'btn_classic'], mapTheme: 'classic', buttonStyle: 'btn_classic', title: null, titles: [] },
-    settings: { sound: true, music: false, haptics: true, notifications: true },
+    settings: { sound: true, music: false, haptics: true, notifications: true, appearance: 'system' },
     ads: { removed: false, removedUntil: 0, lastInterstitialAt: 0, roundsSinceInterstitial: 0, freeCoins: { day: null, count: 0 } },
     shop: { starterBought: false, starterShownDay: null },
     stats: { correct: 0, answered: 0, perfectRounds: 0, bestCombo: 0, survivalBest: 0 },

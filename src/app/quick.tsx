@@ -8,7 +8,8 @@ import { IconButton } from '../components/hud';
 import { BigButton, PopIn, Press, T } from '../components/ui';
 import { fmt, t, upper } from '../i18n/strings';
 import { useGame } from '../store/store';
-import { colors, layout, radius, shadow, tierColors } from '../theme';
+import { colors, layout, radius, shadow, tierColors, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 const TIERS = ['very_easy', 'easy', 'medium', 'hard', 'very_hard', 'mixed'];
 const ICONS: Record<string, string> = {
@@ -17,6 +18,8 @@ const ICONS: Record<string, string> = {
 };
 
 export default function QuickScreen() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
@@ -63,12 +66,12 @@ export default function QuickScreen() {
   );
 }
 
-const st = StyleSheet.create({
-  bg: { backgroundColor: '#C9E2F6', alignItems: 'center' },
+const make_st = (colors: Palette) => StyleSheet.create({
+  bg: { backgroundColor: colors.bg, alignItems: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   cell: { width: '48%', flexGrow: 1 },
-  topic: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 2, minHeight: 96, justifyContent: 'center', borderWidth: 3, borderColor: 'transparent' },
+  topic: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 2, minHeight: 96, justifyContent: 'center', borderWidth: 3, borderColor: 'transparent' },
   sel: { borderColor: colors.accent },
   tiers: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tier: { borderRadius: 99, paddingHorizontal: 14, height: 44, justifyContent: 'center' },

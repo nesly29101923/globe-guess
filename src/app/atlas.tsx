@@ -15,9 +15,12 @@ import { cardKey, masteryOf, regionProgress } from '../logic/atlas';
 import { neutralCam, WRAP } from '../map/camera';
 import { donePath, scopePaths } from '../map/shapes';
 import { useGame } from '../store/store';
-import { colors, layout, mapThemes, radius, shadow } from '../theme';
+import { colors, layout, mapThemes, radius, shadow, type Palette } from '../theme';
+import { useIsDark, usePalette, useStyles } from '../theme/usePalette';
 
 export default function AtlasScreen() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
@@ -79,7 +82,7 @@ export default function AtlasScreen() {
 
 function WorldFill({ width, ids }: { width: number; ids: string[] }) {
   const height = width * 0.55;
-  const th = mapThemes.classic;
+  const th = mapThemes[useIsDark() ? 'night' : 'classic'];
   const paths = useMemo(() => scopePaths('world', 'all', 2), []);
   const done = useMemo(() => donePath('world', ids, 2), [ids]);
   const cam = neutralCam('world');
@@ -105,15 +108,15 @@ function WorldFill({ width, ids }: { width: number; ids: string[] }) {
   );
 }
 
-const st = StyleSheet.create({
-  bg: { backgroundColor: '#C9E2F6', alignItems: 'center' },
+const make_st = (colors: Palette) => StyleSheet.create({
+  bg: { backgroundColor: colors.bg, alignItems: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  mapCard: { backgroundColor: colors.white, borderRadius: radius.xl, overflow: 'hidden' },
-  mapLabel: { position: 'absolute', left: 10, bottom: 10, backgroundColor: colors.white, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
-  region: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 14, gap: 6 },
+  mapCard: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: 'hidden' },
+  mapLabel: { position: 'absolute', left: 10, bottom: 10, backgroundColor: colors.surface, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
+  region: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14, gap: 6 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 8 },
-  card: { width: 70, height: 84, borderRadius: 10, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', padding: 4, gap: 2, borderWidth: 2, borderColor: 'transparent' },
+  card: { width: 70, height: 84, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', padding: 4, gap: 2, borderWidth: 2, borderColor: 'transparent' },
   cardLocked: { backgroundColor: 'rgba(255,255,255,0.55)' },
   bronze: { borderColor: '#D97706' },
   silver: { borderColor: '#94A3B8' },

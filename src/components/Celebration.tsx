@@ -5,9 +5,10 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepe
 import { haptic } from '../feedback/haptics';
 import { play, type Sfx } from '../feedback/sfx';
 import { t } from '../i18n/strings';
-import { colors, motion, radius, shadow } from '../theme';
+import { colors, motion, radius, shadow, type Palette } from '../theme';
 import { fx } from './fx';
 import { BigButton, PopIn, T } from './ui';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 export type CelebrationSpec = {
   kind: 'level' | 'chest' | 'streak' | 'unlock' | 'region' | 'login';
@@ -20,12 +21,14 @@ export type CelebrationSpec = {
 };
 
 export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose: () => void }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const rays = useSharedValue(0);
   const icon = useSharedValue(0);
   const lid = useSharedValue(0);
   useEffect(() => {
     play(spec.sound ?? (spec.kind === 'chest' ? 'chest' : spec.kind === 'streak' ? 'flame' : spec.kind === 'unlock' ? 'unlock' : 'levelup'));
-    haptic.heavy();
+    haptic.medium();
     fx.confetti(spec.kind !== 'unlock');
     rays.value = withRepeat(withTiming(1, { duration: 8000, easing: Easing.linear }), -1);
     icon.value = withSequence(withSpring(1.25, { damping: 6, stiffness: 180 }), withSpring(1, motion.spring));
@@ -68,11 +71,11 @@ export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose:
   );
 }
 
-const st = StyleSheet.create({
+const make_st = (colors: Palette) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(30,16,70,0.86)', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 50 },
   rays: { position: 'absolute', width: 700, height: 700, alignItems: 'center', justifyContent: 'center', opacity: 0.18 },
   ray: { position: 'absolute', width: 60, height: 700, backgroundColor: colors.gold, borderRadius: 30 },
   titleShadow: { textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 3 } },
   rewards: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 20, marginTop: 8 },
-  reward: { backgroundColor: colors.white, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 86, gap: 2 },
+  reward: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 86, gap: 2 },
 });

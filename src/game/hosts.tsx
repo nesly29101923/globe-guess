@@ -6,12 +6,15 @@ import { t } from '../i18n/strings';
 import { onFakeAd, type Placement } from '../services/ads';
 import { requestPermission } from '../services/notifications';
 import { useGame } from '../store/store';
-import { colors, radius, shadow } from '../theme';
+import { colors, radius, shadow, type Palette } from '../theme';
 import { refreshNotifications } from './notify';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 // ---------------------------------------------------------------- fake ads
 
 export function AdHost() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const [req, setReq] = useState<{ kind: 'rewarded' | 'interstitial'; placement: Placement; done: (w: boolean) => void } | null>(null);
   const [left, setLeft] = useState(2);
   useEffect(() => onFakeAd((r) => {
@@ -49,6 +52,8 @@ export function askPrompt(k: PromptKind) {
 }
 
 export function PromptHost() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const [kind, setKind] = useState<PromptKind | null>(null);
   useEffect(() => {
     showPrompt = (k) => setKind(k);
@@ -97,8 +102,8 @@ function setConsent(personalised: boolean) {
   import('./consent').then((m) => m.applyConsent(personalised));
 }
 
-const st = StyleSheet.create({
+const make_st = (colors: Palette) => StyleSheet.create({
   ad: { backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center', gap: 16, zIndex: 100 },
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 90 },
-  sheet: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 20, gap: 10, width: '100%', maxWidth: 380 },
+  sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, gap: 10, width: '100%', maxWidth: 380 },
 });

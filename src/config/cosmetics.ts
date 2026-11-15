@@ -5,12 +5,12 @@ export type Cosmetic = {
   kind: 'map' | 'button' | 'badge';
   theme?: string;          // map theme id in src/theme
   price: number | null;    // coins; null = not for coins (purchase or reward only)
-  source?: 'starter' | 'streak';
+  source?: 'starter' | 'streak' | 'level';
 };
 
 export const COSMETICS: Cosmetic[] = [
   { id: 'classic', kind: 'map', theme: 'classic', price: 0 },
-  { id: 'mint', kind: 'map', theme: 'mint', price: 2000 },
+  { id: 'mint', kind: 'map', theme: 'mint', price: null, source: 'level' },
   { id: 'sunset', kind: 'map', theme: 'sunset', price: 3000 },
   { id: 'night', kind: 'map', theme: 'night', price: 4500 },
   { id: 'parchment', kind: 'map', theme: 'parchment', price: 6000 },
@@ -18,7 +18,7 @@ export const COSMETICS: Cosmetic[] = [
   { id: 'royal', kind: 'map', theme: 'royal', price: 9000 },
   { id: 'neon', kind: 'map', theme: 'neon', price: null, source: 'starter' },
   { id: 'btn_classic', kind: 'button', price: 0 },
-  { id: 'btn_bubble', kind: 'button', price: 500 },
+  { id: 'btn_bubble', kind: 'button', price: null, source: 'level' },
   { id: 'btn_ink', kind: 'button', price: 1500 },
   { id: 'btn_gold', kind: 'button', price: 3000 },
 ];

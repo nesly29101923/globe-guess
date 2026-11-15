@@ -6,9 +6,12 @@ import { BigButton, PopIn, Press, T } from '../components/ui';
 import { fmt, t } from '../i18n/strings';
 import { canClaimLogin } from '../logic/daily';
 import type { SaveState } from '../logic/save';
-import { colors, radius, shadow } from '../theme';
+import { colors, radius, shadow, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 export function LoginCalendar({ save, today, onClaim, onClose }: { save: SaveState; today: string; onClaim: () => void; onClose: () => void }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const cal = balance.daily.loginCalendar;
   const claimable = canClaimLogin(save, today);
   const nextIdx = save.login.next % cal.length;
@@ -39,9 +42,9 @@ export function LoginCalendar({ save, today, onClaim, onClose }: { save: SaveSta
   );
 }
 
-const st = StyleSheet.create({
+const make_st = (colors: Palette) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center', padding: 18, zIndex: 40 },
-  sheet: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 18, gap: 14, width: '100%', maxWidth: 400 },
+  sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 18, gap: 14, width: '100%', maxWidth: 400 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   day: { width: 76, height: 92, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center', gap: 2 },
   dayChest: { width: 160, backgroundColor: colors.goldSoft },

@@ -18,17 +18,21 @@ import { totalDiscovered } from '../logic/atlas';
 import { canClaimLogin, canClaimMissionChest, claimLogin, claimMission, claimMissionChest, dailyPlayed, ensureMissions } from '../logic/daily';
 import { freeCoinsLeft, grantFreeCoins, starterAvailable } from '../logic/economy';
 import { chapterStars, currentLevel, heartsNow, nextChapterGoal, syncHearts, totalStars } from '../logic/journey';
-import { xpToNext } from '../logic/progression';
+import { nextReward, totalXpTo, xpToNext } from '../logic/progression';
+import { rewardItems, rewardLine } from './rewardItems';
 import { canRepair, displayedStreak, repair, streakAtRisk } from '../logic/streak';
 import { msToMidnight } from '../logic/time';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
 import { useGame } from '../store/store';
-import { colors, layout, radius, shadow } from '../theme';
+import { colors, layout, radius, shadow, type Palette } from '../theme';
 import { LoginCalendar } from './LoginCalendar';
 import { showPendingNotificationAsk } from './notify';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 export function HomeScreen() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
@@ -79,6 +83,7 @@ export function HomeScreen() {
   const hearts = heartsNow(save, useGame.getState().now());
   const goal = nextChapterGoal(save);
   const need = xpToNext(save.level);
+  const nextR = nextReward(save.level);
   const freeLeft = freeCoinsLeft(save, today);
   const loginClaimable = canClaimLogin(save, today);
   const missionsClaimable = save.missions.list.some((m) => !m.claimed && m.progress >= m.target) || canClaimMissionChest(save);
@@ -197,6 +202,18 @@ export function HomeScreen() {
           <T size={12} weight="bold" color={colors.accent} center>{goalText}</T>
         </PopIn>
 
+        {/* next level reward: always something a few rounds away */}
+        {nextR ? (
+          <PopIn delay={90} style={[st.card, shadow.soft, st.rowBetween]}>
+            <T size={24}>{nextR.reward.chest ? '🎁' : rewardItems(nextR.reward)[0]?.icon ?? '⭐'}</T>
+            <View style={{ flex: 1, gap: 4 }}>
+              <T size={13} weight="black">{rewardLine(nextR.level, nextR.reward)}</T>
+              <ProgressBar value={nextR.level === save.level + 1 ? save.xp / need : 0} height={7} />
+            </View>
+            <T size={11} weight="bold" color={colors.inkSoft}>{`${Math.max(0, totalXpTo(nextR.level) - totalXpTo(save.level) - save.xp)} XP`}</T>
+          </PopIn>
+        ) : null}
+
         {/* daily challenge */}
         <PopIn delay={120}>
           <Press onPress={() => dailyUnlocked && !dailyDone && router.push({ pathname: '/play', params: { mode: 'daily', nonce: String(Date.now()) } })} disabled={!dailyUnlocked || dailyDone} testID="home-daily">
@@ -296,6 +313,8 @@ function Wobble({ on, children }: { on: boolean; children: React.ReactNode }) {
 }
 
 function Tile({ icon, title, desc, onPress, lockedAt, testID }: { icon: string; title: string; desc: string; onPress: () => void; lockedAt?: number | null; testID?: string }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <Press onPress={onPress} disabled={!!lockedAt} style={st.tileWrap} testID={testID}>
       <View style={[st.tile, shadow.soft, lockedAt ? st.locked : null]}>
@@ -307,22 +326,22 @@ function Tile({ icon, title, desc, onPress, lockedAt, testID }: { icon: string; 
   );
 }
 
-const st = StyleSheet.create({
-  bg: { backgroundColor: '#C9E2F6', alignItems: 'center' },
+const make_st = (colors: Palette) => StyleSheet.create({
+  bg: { backgroundColor: colors.bg, alignItems: 'center' },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12 },
   scroll: { padding: 12, gap: 12 },
-  streak: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  streak: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   freeze: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#E0F2FE', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 4 },
   calendarBtn: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
-  playCard: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 16, gap: 12 },
+  playCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 16, gap: 12 },
   hearts: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.chip, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6 },
-  card: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 14 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   go: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   chest: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tileWrap: { width: '48%', flexGrow: 1 },
-  tile: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 2, minHeight: 112, justifyContent: 'center' },
+  tile: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 2, minHeight: 112, justifyContent: 'center' },
   locked: { opacity: 0.6 },
   starter: { backgroundColor: colors.accent, borderRadius: radius.lg, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
 });

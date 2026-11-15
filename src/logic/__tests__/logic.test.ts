@@ -116,7 +116,7 @@ describe('scoring and rewards', () => {
 describe('xp curve', () => {
   test('table is rounded to 5 and level 2 comes after the first round', () => {
     for (const v of XP_TABLE.slice(1)) expect(v % 5).toBe(0);
-    expect(XP_TABLE[1]).toBe(75);
+    expect(XP_TABLE[1]).toBe(balance.xp.base);
   });
   test('times to level match the design (~3,300 XP/hour)', () => {
     const perHour = 3300;
@@ -131,9 +131,17 @@ describe('xp curve', () => {
     expect(h(50)).toBeLessThan(28);
   });
   test('level ups pay coins', () => {
-    const r = addXp(newSave(T0), 80);
+    const r = addXp(newSave(T0), balance.xp.base + 5);
     expect(r.ups).toHaveLength(1);
-    expect(r.state.coins).toBe(balance.start.coins + balance.rewards.levelUpCoins);
+    expect(r.state.coins).toBe(balance.start.coins + balance.rewards.levelUpCoins + (balance.levelRewards[2]?.coins ?? 0));
+  });
+  test('level rewards: level 6 gives a map theme, level 10 a chest and a title', () => {
+    const r = addXp(newSave(T0), totalXpTo(10));
+    expect(r.state.level).toBe(10);
+    expect(r.state.cosmetics.owned).toContain('mint');
+    expect(r.state.cosmetics.owned).toContain('btn_bubble');
+    expect(r.state.cosmetics.titles).toContain('level_navigator');
+    expect(r.ups.find((u) => u.level === 10)?.reward.chest).toBe(true);
   });
 });
 

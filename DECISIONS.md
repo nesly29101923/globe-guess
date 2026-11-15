@@ -66,3 +66,10 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - **Android builds only compile the CPU types phones use**: arm64 for development/preview, arm64 + armv7 for production (`eas.json`). Building Skia's C++ for all four ABIs ran the free EAS worker out of memory.
 - **Android builds run with 2 Gradle workers, no parallel projects and a 3 GB heap** (`plugins/withGradleMemory.js`): the default settings had the free EAS build machine kill Gradle out of memory.
 - **ProGuard keep rules for Room / WorkManager** (`plugins/withProguardKeep.js`): R8 in release builds stripped `WorkDatabase_Impl`, and the app crashed at launch on a real phone (Samsung A72).
+
+## Round 2 (phone feedback)
+- Haptics cut to answer feedback + level-up/last star; success Light, error Medium.
+- Dark/Light/Auto appearance via palette (`usePalette`/`useStyles`), saved in settings.appearance.
+- Pause sheet (⚙ in round) holds sound/vibration/music/appearance.
+- Result screen: buttons pinned outside the ScrollView; no full-screen skip overlay.
+- Slower XP curve (L5 ≈ 8 min, L10 ≈ 27 min) and a reward on every level (balance.levelRewards); home shows next reward.

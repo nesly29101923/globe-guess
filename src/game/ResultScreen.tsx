@@ -26,7 +26,9 @@ import type { QuizDef } from '../logic/types';
 import { ads } from '../services/ads';
 import { shareCard } from '../services/share';
 import { useGame } from '../store/store';
-import { colors, layout, motion, radius, shadow } from '../theme';
+import { rewardItems } from './rewardItems';
+import { colors, layout, motion, radius, shadow, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 export type NextAction = { label: string; icon?: string; go: () => void };
 
@@ -34,6 +36,8 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
   summary: RoundSummary; quiz: QuizDef; coinsBefore: number; primary: NextAction; secondary?: NextAction;
   onDouble?: () => Promise<boolean>; grid?: boolean[];
 }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
@@ -57,8 +61,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
   const specs = useMemo(() => {
     const out: CelebrationSpec[] = [];
     for (const u of S.levelUps) {
-      const unl = u.unlocks.map((x) => ({ icon: x === 'daily' ? '📅' : x === 'quick' ? '⚡' : '💀', label: t(`unlock_${x}` as never) }));
-      out.push({ kind: 'level', icon: '⭐', title: t('level_up'), subtitle: t('level_reached', { n: u.level }), rewards: [{ icon: '🪙', label: `+${fmt(u.coins)}` }, ...unl] });
+      out.push({ kind: u.reward.chest ? 'chest' : 'level', icon: u.reward.chest ? '🎁' : '⭐', title: t('level_up'), subtitle: t('level_reached', { n: u.level }), rewards: rewardItems(u.reward, u.coins) });
     }
     return out;
   }, [S]);
@@ -72,7 +75,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
     let at = 0;
     later((at += 100), () => setBeat(1));                      // score count-up
     if (isJourney) {
-      for (let i = 1; i <= S.stars; i++) later((at += B * 0.75), () => { setBeat(1 + i); play(`star_${i}` as never); haptic.medium(); });
+      for (let i = 1; i <= S.stars; i++) later((at += B * 0.75), () => { setBeat(1 + i); play(`star_${i}` as never); if (i === S.stars) haptic.tap(); });
       if (S.stars === 0) at += B;
     }
     later((at += B), () => {                                     // coins + XP fly
@@ -172,12 +175,12 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
 
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={skip} testID="result-skip" />
       <View style={[st.top, { paddingTop: insets.top + 8, width: W, alignSelf: 'center' }]} pointerEvents="box-none">
         <LevelBadge level={xpShown.level} xp={xpShown.xp} need={need} />
         <CoinPill value={coinsShown} bumpKey={bump} />
       </View>
-      <ScrollView contentContainerStyle={[st.scroll, { width: W, alignSelf: 'center', paddingBottom: insets.bottom + 24 }]} pointerEvents="box-none">
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[st.scroll, { width: W, alignSelf: 'center', paddingBottom: insets.bottom + 32 }]}
+        onScrollBeginDrag={skip} onTouchEnd={() => beat < 9 && skip()} showsVerticalScrollIndicator={false} testID="result-skip">
         <Pressable onPress={skip}>
           <View ref={scoreRef} style={[st.scoreCard, shadow.card]}>
             <T size={14} weight="black" color={colors.inkSoft}>{t('result_title')}</T>
@@ -237,22 +240,22 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
           </PopIn>
         ) : null}
 
-        {beat >= 9 ? (
-          <PopIn style={{ gap: 10, marginTop: 4 }}>
-            {S.nearMiss ? (
-              <T size={15} weight="black" color={colors.accent} center>
-                {S.nearMiss.need === 1 ? t('near_miss_one', { stars: S.nearMiss.stars }) : t('near_miss_stars', { n: S.nearMiss.need, stars: S.nearMiss.stars })}
-              </T>
-            ) : null}
-            <BigButton label={primary.label} icon={primary.icon} onPress={primary.go} breathe testID="result-primary" />
-            <View style={st.secondaryRow}>
-              {secondary ? <SmallButton label={secondary.label} icon="🏠" onPress={secondary.go} testID="result-home" style={{ flex: 1 }} /> : null}
-              <SmallButton label={shareMsg ?? t('share')} icon="↗" onPress={onShare} testID="result-share" style={{ flex: 1 }} />
-              {doubleOk && !doubled ? <SmallButton label={t('double_coins')} icon="▶" color={colors.gold} textColor={colors.white} onPress={doDouble} testID="result-double" style={{ flex: 1.3 }} /> : null}
-            </View>
-          </PopIn>
-        ) : null}
       </ScrollView>
+      {beat >= 9 ? (
+        <PopIn style={[st.actions, { width: W, paddingBottom: insets.bottom + 10 }]}>
+          {S.nearMiss ? (
+            <T size={15} weight="black" color={colors.accent} center>
+              {S.nearMiss.need === 1 ? t('near_miss_one', { stars: S.nearMiss.stars }) : t('near_miss_stars', { n: S.nearMiss.need, stars: S.nearMiss.stars })}
+            </T>
+          ) : null}
+          <BigButton label={primary.label} icon={primary.icon} onPress={primary.go} breathe testID="result-primary" />
+          <View style={st.secondaryRow}>
+            {secondary ? <SmallButton label={secondary.label} icon="🏠" onPress={secondary.go} testID="result-home" style={{ flex: 1 }} /> : null}
+            <SmallButton label={shareMsg ?? t('share')} icon="↗" onPress={onShare} testID="result-share" style={{ flex: 1 }} />
+            {doubleOk && !doubled ? <SmallButton label={t('double_coins')} icon="▶" color={colors.gold} textColor={colors.white} onPress={doDouble} testID="result-double" style={{ flex: 1.3 }} /> : null}
+          </View>
+        </PopIn>
+      ) : null}
       <ShareCard ref={shareRef} correct={S.correct} total={S.total} stars={S.stars} grid={grid ? gridFor(grid) : undefined}
         title={upper(t(quiz.topicLabel === 'usa' ? 'q_state' : quiz.topicLabel === 'flags' ? 'q_flag' : 'q_country'))}
         subtitle={upper(t(`topic_${quiz.topicLabel}` as never))} />
@@ -262,6 +265,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
 }
 
 function Stars({ n, beat }: { n: number; beat: number }) {
+  const st = useStyles(make_st);
   return (
     <View style={st.stars}>
       {[1, 2, 3].map((i) => <Star key={i} on={i <= n && beat >= 1 + i} big={i === 2} />)}
@@ -270,6 +274,8 @@ function Stars({ n, beat }: { n: number; beat: number }) {
 }
 
 function Star({ on, big }: { on: boolean; big: boolean }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const s = useSharedValue(on ? 1 : 0.85);
   useEffect(() => {
     if (on) s.value = withSequence(withTiming(1.6, { duration: 120 }), withSpring(1, { damping: 7, stiffness: 220 }));
@@ -283,6 +289,8 @@ function Star({ on, big }: { on: boolean; big: boolean }) {
 }
 
 function AtlasCardFlip({ id, kind, delay, mastery }: { id: string; kind: string; delay: number; mastery: number | null }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const r = useSharedValue(0);
   useEffect(() => {
     r.value = withDelay(delay, withTiming(1, { duration: 360 }));
@@ -301,6 +309,8 @@ function AtlasCardFlip({ id, kind, delay, mastery }: { id: string; kind: string;
 }
 
 function StreakLine({ summary }: { summary: RoundSummary }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const e = summary.streak;
   let text = '';
   if (e.kind === 'started') text = `🔥 ${t('streak_started')}`;
@@ -319,17 +329,17 @@ function StreakLine({ summary }: { summary: RoundSummary }) {
   );
 }
 
-const st = StyleSheet.create({
-  bg: { backgroundColor: '#C9E2F6' },
+const make_st = (colors: Palette) => StyleSheet.create({
+  bg: { backgroundColor: colors.bg },
   top: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 3 },
   scroll: { padding: 12, gap: 10 },
-  scoreCard: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 16, alignItems: 'center', gap: 4 },
+  scoreCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 16, alignItems: 'center', gap: 4 },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline' },
   scoreLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   best: { backgroundColor: colors.flame, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
   stars: { flexDirection: 'row', gap: 6, alignItems: 'flex-end', height: 62 },
   starGlow: { textShadowColor: 'rgba(245,158,11,0.6)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
-  card: { backgroundColor: colors.white, borderRadius: radius.lg, padding: 14 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14 },
   rewardRow: { flexDirection: 'row', gap: 18, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
   reward: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   coinIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FCD34D' },
@@ -338,6 +348,7 @@ const st = StyleSheet.create({
   atlasFlag: { width: 40, height: 28, borderRadius: 3 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   secondaryRow: { flexDirection: 'row', gap: 8 },
+  actions: { gap: 10, paddingHorizontal: 12, paddingTop: 10, alignSelf: 'center', backgroundColor: colors.bg },
 });
 
 export { Press };

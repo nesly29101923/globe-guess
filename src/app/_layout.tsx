@@ -17,12 +17,15 @@ import { installRealProviders } from '../services/real';
 import { remoteConfig } from '../services/remoteConfig';
 import { flushSave, useGame } from '../store/store';
 import { fontFiles } from '../theme';
+import { useIsDark, usePalette } from '../theme/usePalette';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontFiles);
   const ready = useGame((g) => g.ready);
+  const dark = useIsDark();
+  const pal = usePalette();
 
   useEffect(() => {
     installRealProviders();
@@ -46,13 +49,13 @@ export default function RootLayout() {
     if ((fontsLoaded || fontError) && ready) SplashScreen.hideAsync().catch(() => {});
   }, [fontsLoaded, fontError, ready]);
 
-  if ((!fontsLoaded && !fontError) || !ready) return <View style={{ flex: 1, backgroundColor: '#C9E2F6' }} />;
+  if ((!fontsLoaded && !fontError) || !ready) return <View style={{ flex: 1, backgroundColor: pal.bg }} />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#C9E2F6' } }} />
+        <StatusBar style={dark ? 'light' : 'dark'} />
+        <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: pal.bg } }} />
         <FxLayer />
         <PromptHost />
         <AdHost />

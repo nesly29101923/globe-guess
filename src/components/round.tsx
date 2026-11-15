@@ -11,12 +11,15 @@ import Animated, {
 import { BUTTON_STYLES } from '../config/cosmetics';
 import { FLAG_IMAGES } from '../data/flagImages';
 import { t, upper } from '../i18n/strings';
-import { colors, fonts, motion, radius, shadow, tierColors } from '../theme';
+import { colors, fonts, motion, radius, shadow, tierColors, type Palette } from '../theme';
 import { fitSize, Press, T } from './ui';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 // ---------------------------------------------------------------- title card
 
 export function TitleCard({ title, chips, tier, style }: { title: string; chips: string[]; tier?: string; style?: StyleProp<ViewStyle> }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const v = useSharedValue(0);
   useEffect(() => {
     v.value = 0;
@@ -46,6 +49,8 @@ export function TitleCard({ title, chips, tier, style }: { title: string; chips:
 // ---------------------------------------------------------------- progress dots
 
 export function ProgressDots({ total, index, results }: { total: number; index: number; results: (boolean | null)[] }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <View style={st.dotsWrap}>
       <View style={st.dots}>
@@ -61,6 +66,8 @@ export function ProgressDots({ total, index, results }: { total: number; index: 
 }
 
 function Dot({ bg, current, edge }: { bg: string; current: boolean; edge: boolean }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const s = useSharedValue(1);
   useEffect(() => {
     s.value = withSequence(withTiming(1.35, { duration: 120 }), withSpring(current ? 1.15 : 1, motion.spring));
@@ -72,6 +79,8 @@ function Dot({ bg, current, edge }: { bg: string; current: boolean; edge: boolea
 // ---------------------------------------------------------------- timer ring
 
 export function TimerRing({ progress, secondsLeft, size = 76, frozen }: { progress: SharedValue<number>; secondsLeft: number; size?: number; frozen?: boolean }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const stroke = 8;
   const r = size / 2 - stroke / 2 - 4;
   const path = useMemo(() => {
@@ -112,6 +121,8 @@ export function AnswerButton({
   letter: string; label: string; flagId?: string; state: ButtonState; onPress: () => void; index: number; disabled: boolean;
   skin?: string; revealKey: string; testID?: string; width?: number;
 }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const sk = BUTTON_STYLES[skin] ?? BUTTON_STYLES.btn_classic;
   const pop = useSharedValue(0);
   const shake = useSharedValue(0);
@@ -180,6 +191,8 @@ export function AnswerButton({
 // ---------------------------------------------------------------- combo
 
 export function ComboBadge({ combo }: { combo: number }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const s = useSharedValue(0);
   const flame = useSharedValue(0);
   useEffect(() => {
@@ -205,6 +218,8 @@ export function ComboBadge({ combo }: { combo: number }) {
 // ---------------------------------------------------------------- answer pill (name on reveal)
 
 export function AnswerPill(props: { name: string; correct: boolean; flagId?: string; visible: boolean }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   // keep showing the last revealed answer while fading out, so the next question's answer never flashes up
   const shown = React.useRef(props);
   if (props.visible) shown.current = props;
@@ -231,6 +246,7 @@ export function AnswerPill(props: { name: string; correct: boolean; flagId?: str
 // ---------------------------------------------------------------- flag card
 
 export function FlagCard({ flagId, small, width }: { flagId: string; small: SharedValue<number>; width: number }) {
+  const st = useStyles(make_st);
   const v = useSharedValue(0);
   useEffect(() => {
     v.value = 0;
@@ -255,6 +271,8 @@ export function FlagCard({ flagId, small, width }: { flagId: string; small: Shar
 export function PowerupButton({ icon, label, count, onPress, disabled, highlight, free, testID }: {
   icon: string; label: string; count: number; onPress: () => void; disabled?: boolean; highlight?: boolean; free?: boolean; testID?: string;
 }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const p = useSharedValue(1);
   useEffect(() => {
     p.value = highlight ? withRepeat(withSequence(withTiming(1.15, { duration: 380, easing: Easing.inOut(Easing.sin) }), withTiming(1, { duration: 380 })), -1) : withTiming(1);
@@ -275,14 +293,14 @@ export function PowerupButton({ icon, label, count, onPress, disabled, highlight
   );
 }
 
-const st = StyleSheet.create({
-  title: { backgroundColor: colors.white, borderRadius: radius.xl, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center', gap: 6 },
+const make_st = (colors: Palette) => StyleSheet.create({
+  title: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center', gap: 6 },
   chips: { flexDirection: 'row', gap: 6 },
   chip: { paddingHorizontal: 10, height: 22, borderRadius: radius.pill, justifyContent: 'center' },
   dotsWrap: { alignItems: 'center', gap: 3 },
   dots: { flexDirection: 'row', gap: 7, alignItems: 'center' },
   dot: { width: 11, height: 11, borderRadius: 6 },
-  timerDisc: { backgroundColor: colors.white, borderRadius: 999 },
+  timerDisc: { backgroundColor: colors.surface, borderRadius: 999 },
   center: { alignItems: 'center', justifyContent: 'center' },
   answerWrap: { flex: 1 },
   answer: { minHeight: 58, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, gap: 6 },
@@ -293,11 +311,11 @@ const st = StyleSheet.create({
   combo: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   comboGlow: { position: 'absolute', width: 96, height: 96, borderRadius: 48 },
   comboPill: { borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 4, alignItems: 'center' },
-  pill: { backgroundColor: colors.white, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: '92%' },
+  pill: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: '92%' },
   pillIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pillFlag: { width: 34, height: 25, borderRadius: 4 },
-  flagCard: { backgroundColor: colors.white, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
-  pu: { width: 62, height: 58, borderRadius: radius.lg, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  flagCard: { backgroundColor: colors.surface, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
+  pu: { width: 62, height: 58, borderRadius: radius.lg, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   puHot: { borderWidth: 2.5, borderColor: colors.correct },
   puCount: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
 });

@@ -6,7 +6,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { haptic } from '../feedback/haptics';
 import { play, type Sfx } from '../feedback/sfx';
-import { colors, fonts, motion, radius, shadow } from '../theme';
+import { colors, fonts, motion, radius, shadow, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 /** Every tap answers within 100 ms: press-down spring, sound, light haptic. */
 export function Press({
@@ -28,7 +29,6 @@ export function Press({
         s.value = withSpring(scaleTo, motion.spring);
         if (!silent) {
           if (sound) play(sound);
-          haptic.tap();
         }
       }}
       onPressOut={() => {
@@ -41,17 +41,18 @@ export function Press({
   );
 }
 
-export function T({ children, style, size = 16, weight = 'bold', color = colors.ink, lines, center, shrink }: {
+export function T({ children, style, size = 16, weight = 'bold', color, lines, center, shrink }: {
   children: React.ReactNode; style?: StyleProp<TextStyle>; size?: number; weight?: keyof typeof fonts; color?: string;
   lines?: number; center?: boolean; shrink?: boolean;
 }) {
+  const pal = usePalette();
   return (
     <Text
       allowFontScaling={false}
       numberOfLines={lines}
       adjustsFontSizeToFit={shrink}
       minimumFontScale={0.6}
-      style={[{ fontFamily: fonts[weight], fontSize: size, color, textAlign: center ? 'center' : undefined, includeFontPadding: false }, style]}
+      style={[{ fontFamily: fonts[weight], fontSize: size, color: color ?? pal.ink, textAlign: center ? 'center' : undefined, includeFontPadding: false }, style]}
     >
       {children}
     </Text>
@@ -111,13 +112,15 @@ function splitTwo(text: string): string[] {
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles(make_styles);
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function Chip({ label, bg = colors.chip, color = colors.ink, style }: { label: string; bg?: string; color?: string; style?: StyleProp<ViewStyle> }) {
+export function Chip({ label, bg, color, style }: { label: string; bg?: string; color?: string; style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles(make_styles);
   return (
-    <View style={[styles.chip, { backgroundColor: bg }, style]}>
-      <T size={12} weight="bold" color={color}>{label}</T>
+    <View style={[styles.chip, { backgroundColor: bg ?? colors.chip }, style]}>
+      <T size={12} weight="bold" color={color ?? colors.ink}>{label}</T>
     </View>
   );
 }
@@ -127,6 +130,8 @@ export function BigButton({ label, onPress, color = colors.accent, textColor = c
   label: string; onPress: () => void; color?: string; textColor?: string; breathe?: boolean; icon?: string; sub?: string;
   disabled?: boolean; testID?: string; style?: StyleProp<ViewStyle>;
 }) {
+  const colors = usePalette();
+  const styles = useStyles(make_styles);
   const b = useSharedValue(1);
   useEffect(() => {
     if (breathe && !disabled) b.value = withRepeat(withSequence(withTiming(1.04, { duration: motion.breathe / 2, easing: Easing.inOut(Easing.sin) }), withTiming(1, { duration: motion.breathe / 2, easing: Easing.inOut(Easing.sin) })), -1);
@@ -148,10 +153,14 @@ export function BigButton({ label, onPress, color = colors.accent, textColor = c
   );
 }
 
-export function SmallButton({ label, onPress, icon, color = colors.white, textColor = colors.ink, disabled, testID, style }: {
+export function SmallButton({ label, onPress, icon, color: colorIn, textColor: textIn, disabled, testID, style }: {
   label: string; onPress: () => void; icon?: string; color?: string; textColor?: string; disabled?: boolean; testID?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const colors = usePalette();
+  const styles = useStyles(make_styles);
+  const color = colorIn ?? colors.surface;
+  const textColor = textIn ?? colors.ink;
   return (
     <Press onPress={onPress} disabled={disabled} testID={testID} style={style}>
       <View style={[styles.small, { backgroundColor: disabled ? colors.chip : color, opacity: disabled ? 0.6 : 1 }, shadow.soft]}>
@@ -174,6 +183,7 @@ export function PopIn({ children, delay = 0, style, from = 0.6 }: { children: Re
 
 /** A red dot for anything claimable. */
 export function Dot({ style }: { style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles(make_styles);
   const v = useSharedValue(1);
   useEffect(() => {
     v.value = withRepeat(withSequence(withTiming(1.25, { duration: 500 }), withTiming(1, { duration: 500 })), -1);
@@ -182,7 +192,8 @@ export function Dot({ style }: { style?: StyleProp<ViewStyle> }) {
   return <Animated.View style={[styles.dot, style, a]} />;
 }
 
-export function ProgressBar({ value, color = colors.accent, height = 10, track = colors.track }: { value: number; color?: string; height?: number; track?: string }) {
+export function ProgressBar({ value, color = colors.accent, height = 10, track: trackIn }: { value: number; color?: string; height?: number; track?: string }) {
+  const track = trackIn ?? usePalette().track;
   const w = useSharedValue(value);
   useEffect(() => {
     w.value = withTiming(Math.max(0, Math.min(1, value)), { duration: motion.countUp, easing: Easing.out(Easing.cubic) });
@@ -195,8 +206,8 @@ export function ProgressBar({ value, color = colors.accent, height = 10, track =
   );
 }
 
-export const styles = StyleSheet.create({
-  card: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 16, ...shadow.card },
+export const make_styles = (colors: Palette) => StyleSheet.create({
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 16, ...shadow.card },
   chip: { paddingHorizontal: 10, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   big: { minHeight: 62, borderRadius: radius.xl, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
   bigInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },

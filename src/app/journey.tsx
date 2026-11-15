@@ -14,12 +14,15 @@ import { chapterLock, chapterStars, currentLevel, heartsNow, isLevelOpen, refill
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
 import { useGame } from '../store/store';
-import { colors, layout, radius, shadow } from '../theme';
+import { colors, layout, radius, shadow, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 const NODE = 66;
 const ROW = 92;
 
 export default function JourneyScreen() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
@@ -149,6 +152,8 @@ export default function JourneyScreen() {
 }
 
 function Node({ level, stars, open, current, onPress }: { level: LevelDef; stars: number; open: boolean; current: boolean; onPress: () => void }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const p = useSharedValue(1);
   useEffect(() => {
     if (current) p.value = withRepeat(withSequence(withTiming(1.12, { duration: 600, easing: Easing.inOut(Easing.sin) }), withTiming(1, { duration: 600, easing: Easing.inOut(Easing.sin) })), -1);
@@ -172,6 +177,7 @@ function Node({ level, stars, open, current, onPress }: { level: LevelDef; stars
 }
 
 function Segment({ x1, y1, x2, y2, done }: { x1: number; y1: number; x2: number; y2: number; done: boolean }) {
+  const colors = usePalette();
   const len = Math.hypot(x2 - x1, y2 - y1);
   const ang = Math.atan2(y2 - y1, x2 - x1);
   return (
@@ -180,11 +186,11 @@ function Segment({ x1, y1, x2, y2, done }: { x1: number; y1: number; x2: number;
   );
 }
 
-const st = StyleSheet.create({
-  bg: { backgroundColor: '#C9E2F6', alignItems: 'center' },
+const make_st = (colors: Palette) => StyleSheet.create({
+  bg: { backgroundColor: colors.bg, alignItems: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 8, zIndex: 2 },
-  starsPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.white, borderRadius: 99, paddingHorizontal: 12, height: 40 },
-  chapter: { position: 'absolute', left: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.white, borderRadius: radius.lg, padding: 12 },
+  starsPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.surface, borderRadius: 99, paddingHorizontal: 12, height: 40 },
+  chapter: { position: 'absolute', left: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12 },
   lockedCard: { opacity: 0.75 },
   nodeWrap: { position: 'absolute', width: NODE, alignItems: 'center' },
   node: { width: NODE, height: NODE, borderRadius: NODE / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.white },
@@ -195,5 +201,5 @@ const st = StyleSheet.create({
   chestTag: { position: 'absolute', right: -16, top: -6 },
   bottom: { position: 'absolute', bottom: 0, paddingHorizontal: 16 },
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  sheet: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 20, gap: 10, width: '100%', maxWidth: 380 },
+  sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, gap: 10, width: '100%', maxWidth: 380 },
 });

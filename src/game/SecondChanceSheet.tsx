@@ -3,11 +3,14 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { PopIn, Press, SmallButton, T } from '../components/ui';
 import { t } from '../i18n/strings';
-import { colors, radius, shadow } from '../theme';
+import { colors, radius, shadow, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 export function SecondChanceSheet({ onPick, items, free, adOk, survival }: {
   onPick: (how: 'item' | 'free' | 'ad' | 'no') => void; items: number; free: boolean; adOk: boolean; survival?: boolean;
 }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <View style={st.dim}>
       <PopIn style={[st.sheet, shadow.card]}>
@@ -26,8 +29,8 @@ export function SecondChanceSheet({ onPick, items, free, adOk, survival }: {
   );
 }
 
-const st = StyleSheet.create({
+const make_st = (colors: Palette) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  sheet: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 20, gap: 12, width: '100%', maxWidth: 380 },
+  sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, gap: 12, width: '100%', maxWidth: 380 },
   row: { flexDirection: 'row', gap: 10, justifyContent: 'center', flexWrap: 'wrap' },
 });

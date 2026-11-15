@@ -2,6 +2,8 @@
 // Components take every colour, font, radius, shadow and timing from here.
 
 export const colors = {
+  bg: '#C9E2F6',          // screen background behind cards
+  surface: '#FFFFFF',     // cards, sheets, pills
   ink: '#0F172A',
   inkSoft: '#64748B',
   chip: '#EEF2F7',
@@ -25,6 +27,26 @@ export const colors = {
   progressTodoEdge: '#94A3B8',
   disabled: '#CBD5E1',
   heart: '#EF4444',
+};
+
+export type Palette = typeof colors;
+
+/** Dark mode: same accents, dark surfaces and light text. */
+export const darkColors: Palette = {
+  ...colors,
+  bg: '#0B1530',
+  surface: '#1C2742',
+  ink: '#F1F5F9',
+  inkSoft: '#94A3B8',
+  chip: '#2B3756',
+  accentSoft: '#2E2459',
+  correctSoft: '#14532D',
+  wrongSoft: '#4C1D1D',
+  goldSoft: '#3D3015',
+  track: '#2B3756',
+  progressTodo: 'rgba(255,255,255,0.25)',
+  progressTodoEdge: '#64748B',
+  disabled: '#475569',
 };
 
 export const tierColors: Record<string, string> = {

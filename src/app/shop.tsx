@@ -16,7 +16,14 @@ import { buy, buyCosmetic, grantProduct, priceOf, starterAvailable, type ShopIte
 import { analytics } from '../services/analytics';
 import { purchases } from '../services/purchases';
 import { useGame } from '../store/store';
-import { colors, layout, mapThemes, radius, shadow } from '../theme';
+import { colors, layout, mapThemes, radius, shadow, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
+
+/** Level that gives a cosmetic as a reward. */
+function levelOf(id: string): number {
+  const e = Object.entries(balance.levelRewards).find(([, r]) => r.cosmetic === id);
+  return e ? Number(e[0]) : 0;
+}
 
 const ITEMS: { id: ShopItem; icon: string; label: string; desc: string }[] = [
   { id: 'fiftyFifty', icon: '½', label: 'pu_fiftyFifty', desc: 'pu_fiftyFifty_desc' },
@@ -28,6 +35,8 @@ const ITEMS: { id: ShopItem; icon: string; label: string; desc: string }[] = [
 ];
 
 export default function ShopScreen() {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   const { width: SW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
@@ -143,7 +152,7 @@ export default function ShopScreen() {
                     </View>
                     <T size={12} weight="black">{t(`theme_${c.id}` as never)}</T>
                     <T size={11} weight="bold" color={inUse ? colors.correct : owned ? colors.accent : colors.goldDark}>
-                      {inUse ? t('equipped') : owned ? t('equip') : c.price == null ? t('starter_only') : `🪙 ${fmt(c.price)}`}
+                      {inUse ? t('equipped') : owned ? t('equip') : c.price == null ? (c.source === 'level' ? t('level_reached', { n: levelOf(c.id) }) : t('starter_only')) : `🪙 ${fmt(c.price)}`}
                     </T>
                   </View>
                 </Press>
@@ -159,14 +168,14 @@ export default function ShopScreen() {
               const owned = save.cosmetics.owned.includes(c.id);
               const inUse = save.cosmetics.buttonStyle === c.id;
               return (
-                <Press key={c.id} onPress={() => buyTheme(c.id)} style={st.themeCell} testID={`btn-${c.id}`}>
+                <Press key={c.id} onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.themeCell} testID={`btn-${c.id}`}>
                   <View style={[st.theme, inUse && st.inUse, shadow.soft]}>
                     <View style={[st.btnPreview, { backgroundColor: b.bg, borderColor: b.border ?? 'transparent' }]}>
                       <View style={[st.badge, { backgroundColor: b.badgeBg }]}><T size={10} weight="black" color={b.badgeText}>A</T></View>
                       <T size={11} weight="bold" color={b.text}>FRANCE</T>
                     </View>
                     <T size={12} weight="black">{t(c.id as never)}</T>
-                    <T size={11} weight="bold" color={inUse ? colors.correct : owned ? colors.accent : colors.goldDark}>{inUse ? t('equipped') : owned ? t('equip') : `🪙 ${fmt(c.price ?? 0)}`}</T>
+                    <T size={11} weight="bold" color={inUse ? colors.correct : owned ? colors.accent : colors.goldDark}>{inUse ? t('equipped') : owned ? t('equip') : c.price == null ? t('level_reached', { n: levelOf(c.id) }) : `🪙 ${fmt(c.price)}`}</T>
                   </View>
                 </Press>
               );
@@ -208,6 +217,7 @@ export default function ShopScreen() {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const st = useStyles(make_st);
   return (
     <PopIn style={[st.section, shadow.soft]}>
       <T size={16} weight="black">{title}</T>
@@ -217,6 +227,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function CoinButton({ price, affordable, onPress, testID }: { price: number; affordable: boolean; onPress: () => void; testID?: string }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <Press onPress={onPress} testID={testID} sound={affordable ? 'coin_0' : 'tap'}>
       <View style={[st.buy, { backgroundColor: affordable ? colors.gold : colors.chip }]}>
@@ -228,6 +240,8 @@ function CoinButton({ price, affordable, onPress, testID }: { price: number; aff
 }
 
 function BuyButton({ label, onPress, busy, light, testID }: { label: string; onPress: () => void; busy?: boolean; light?: boolean; testID?: string }) {
+  const colors = usePalette();
+  const st = useStyles(make_st);
   return (
     <Press onPress={onPress} disabled={busy} testID={testID}>
       <View style={[st.buy, { backgroundColor: light ? colors.white : colors.correct, minWidth: 86 }]}>
@@ -237,20 +251,20 @@ function BuyButton({ label, onPress, busy, light, testID }: { label: string; onP
   );
 }
 
-const st = StyleSheet.create({
-  bg: { backgroundColor: '#C9E2F6', alignItems: 'center' },
+const make_st = (colors: Palette) => StyleSheet.create({
+  bg: { backgroundColor: colors.bg, alignItems: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   starter: { backgroundColor: colors.accent, borderRadius: radius.xl, padding: 16, gap: 8 },
-  tag: { backgroundColor: colors.white, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 },
-  section: { backgroundColor: colors.white, borderRadius: radius.xl, padding: 14, gap: 10 },
+  tag: { backgroundColor: colors.surface, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 },
+  section: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 14, gap: 10 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   itemIcon: { width: 46, height: 46, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   buy: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.md, paddingHorizontal: 12, height: 44, justifyContent: 'center' },
   coin: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#FCD34D', borderWidth: 2, borderColor: colors.white },
   themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   themeCell: { width: '31%', flexGrow: 1 },
-  theme: { backgroundColor: colors.white, borderRadius: radius.md, padding: 8, alignItems: 'center', gap: 4, borderWidth: 3, borderColor: colors.chip },
+  theme: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 8, alignItems: 'center', gap: 4, borderWidth: 3, borderColor: colors.chip },
   inUse: { borderColor: colors.correct },
   swatch: { width: '100%', height: 54, borderRadius: 10, overflow: 'hidden' },
   land: { position: 'absolute', left: 10, top: 10, width: 46, height: 30, borderRadius: 8, borderWidth: 1.5 },

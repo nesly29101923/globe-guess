@@ -58,7 +58,6 @@ function CoinBurst({ b, onEnd }: { b: Extract<Burst, { kind: 'coins' }>; onEnd: 
   const land = useRef(() => {
     landed.current += 1;
     playCoin();
-    if (landed.current % 2 === 1) haptic.tick();
     b.onLand?.();
     if (landed.current >= b.n) {
       b.onDone?.();
