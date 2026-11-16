@@ -111,7 +111,7 @@ export type ButtonState = 'idle' | 'correct' | 'wrong' | 'faded' | 'removed';
 
 /** Room for the answer text inside a button of width w (letter badge, gaps and the tick/cross slot taken off). */
 export function answerTextWidth(w: number): number {
-  return w - 16 - 26 - 6 - 4;
+  return w - 16 - 26 - 12 - 4 - 6; // paddings, letter badge, gaps, spacer, borders
 }
 
 export function AnswerButton({
@@ -201,13 +201,11 @@ export function ComboBadge({ combo }: { combo: number }) {
     else s.value = withTiming(0, { duration: 180 });
     flame.value = combo >= 5 ? withRepeat(withSequence(withTiming(1, { duration: 260 }), withTiming(0.6, { duration: 260 })), -1) : withTiming(0);
   }, [combo, s, flame]);
-  const a = useAnimatedStyle(() => ({ opacity: Math.min(1, s.value), transform: [{ scale: s.value }, { rotate: `${-6 + 3 * flame.value}deg` }] }));
-  const glow = useAnimatedStyle(() => ({ opacity: 0.25 + 0.5 * flame.value, transform: [{ scale: 1 + 0.25 * flame.value }] }));
+  const a = useAnimatedStyle(() => ({ opacity: s.value > 0.05 ? 1 : 0, transform: [{ scale: s.value }, { rotate: `${-4 + 3 * flame.value}deg` }] }));
   const hot = combo >= 3;
   const bg = combo >= 5 ? colors.flame : combo >= 3 ? colors.gold : colors.accent;
   return (
     <Animated.View style={[st.combo, a]} pointerEvents="none">
-      {hot ? <Animated.View style={[st.comboGlow, { backgroundColor: bg }, glow]} /> : null}
       <View style={[st.comboPill, { backgroundColor: bg }, shadow.card]}>
         <View style={st.comboHead}>
           {combo >= 5 ? <Icon name="fire" size={14} color={colors.white} /> : null}
@@ -314,7 +312,6 @@ const make_st = (colors: Palette) => StyleSheet.create({
   flagSlot: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
   flagSmall: { width: 72, height: 54, borderRadius: 4 },
   combo: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  comboGlow: { position: 'absolute', width: 96, height: 96, borderRadius: 48 },
   comboPill: { borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 4, alignItems: 'center' },
   pill: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: '92%' },
   pillIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },

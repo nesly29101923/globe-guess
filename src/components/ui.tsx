@@ -52,7 +52,7 @@ export function T({ children, style, size = 16, weight = 'bold', color, lines, c
       allowFontScaling={false}
       numberOfLines={lines}
       adjustsFontSizeToFit={shrink}
-      minimumFontScale={0.7}
+      minimumFontScale={0.55}
       style={[{ fontFamily: fonts[weight], fontSize: size, color: color ?? pal.ink, textAlign: center ? 'center' : undefined, includeFontPadding: false }, style]}
     >
       {children}

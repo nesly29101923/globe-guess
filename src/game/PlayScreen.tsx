@@ -483,17 +483,14 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     if (!q || isPickFlag) return [0, 1, 2, 3].map(() => ({ size: type.body, lines: 1 }));
     const tw = answerTextWidth(btnW);
     const names = q.options.map((o) => upper(itemName(o)));
-    const fits = names.map((n) => fitSize(n, type.body, tw, 12, 0.7));
-    // one size for all four (never below 12); names with spaces wrap to two lines at that size
+    // Poppins Bold capitals are about 0.78 em wide (0.7 was too hopeful: KYRGYZSTAN broke mid-word)
+    const fits = names.map((n) => fitSize(n, type.body, tw, 12, 0.78));
+    // one size for all four (never below 12); names with spaces may wrap to two lines at that size
     const common = Math.max(12, Math.min(...fits.map((f) => f.size)));
     const lines = Math.min(2, Math.max(...fits.map((f) => f.lines)));
-    // a single word too long for the button (LIECHTENSTEIN) gets its own smaller size on one line,
-    // instead of breaking mid-word or shrinking the other three
-    return names.map((n) => {
-      if (n.includes(' ')) return { size: common, lines };
-      const own = Math.floor(tw / (n.length * 0.7));
-      return own < common ? { size: Math.max(9, own), lines: 1 } : { size: common, lines };
-    });
+    // a single word is always one line: it can never break mid-word, and if it is still too wide the text
+    // shrinks itself to fit (adjustsFontSizeToFit), without touching the other three
+    return names.map((n) => (n.includes(' ') ? { size: common, lines } : { size: common, lines: 1 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q?.itemId, idx, btnW]);
 
@@ -528,8 +525,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
           <ProgressDots total={quiz.questions.length} index={idx} results={results} tier={quiz.tierLabel === 'boss' ? 'boss' : tierChip} />
         )}
       </View>
-      <Press onPress={pause} style={[st.close, { top: top + 8, right: (SW - W) / 2 + 20 }]} testID="pause" hitSlop={10}>
-        <View style={[st.closeInner, shadow.soft]}><Icon name="pause" size={20} color={colors.inkSoft} /></View>
+      <Press onPress={pause} style={[st.close, { top: top + 6, right: (SW - W) / 2 + 20 }]} testID="pause" hitSlop={10}>
+        <View style={st.closeInner}><Icon name="pause" size={22} color={colors.inkSoft} /></View>
       </Press>
 
       {/* flag card */}
@@ -635,7 +632,7 @@ const make_st = (colors: Palette) => StyleSheet.create({
   lives: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
   survivalCount: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 10, height: 28 },
   close: { position: 'absolute', zIndex: 5 },
-  closeInner: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  closeInner: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   flagWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   namePrompt: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 22, paddingVertical: 14, maxWidth: '86%' },
   pillWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },

@@ -12,7 +12,8 @@
       "requireFullScreen": true,
       "infoPlist": {
         "NSUserTrackingUsageDescription": "Your data is used to show ads that are more relevant to you.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CADisableMinimumFrameDurationOnPhone": false
       }
     },
     "android": {

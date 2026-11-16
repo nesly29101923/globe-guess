@@ -133,3 +133,8 @@ Every choice made while building without a reviewer, with one line of reasoning.
   that mounts the popup; (2) sheets and `PopIn` no longer fade a whole container (off-screen drawing every frame):
   they move/scale, and only the flat dim fades; (3) own `Toggle` instead of the system switch, which sat off-centre
   on the new iOS switch size.
+- **60 fps cap on iPhone** (`CADisableMinimumFrameDurationOnPhone: false` in app.json): a steady 60 with 16 ms per
+  frame instead of chasing 120 with 8 ms; also less battery and heat. Android follows the display (not capped yet).
+- **Answers**: width estimate corrected (0.78 em, real text box); a single word is always one line and shrinks itself.
+  Pause is a plain icon inside the title card; the combo badge lost its translucent glow disc; FPS counter moved to the
+  bottom so it covers nothing.

@@ -50,7 +50,7 @@ export function FpsMeter() {
   }, []);
   const bad = (v: number) => (v && v < 50 ? st.bad : null);
   return (
-    <View style={[st.box, { top: insets.top + 2 }]} pointerEvents="none">
+    <View style={[st.box, { bottom: Math.max(2, insets.bottom - 14) }]} pointerEvents="none">
       <Text style={[st.txt, bad(ui)]}>{`UI ${ui}`}</Text>
       <Text style={[st.txt, bad(js)]}>{`JS ${js}`}</Text>
       <Text style={[st.txt, worst > 34 ? st.bad : null]}>{`${worst}ms`}</Text>
