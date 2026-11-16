@@ -16,8 +16,10 @@ and the videos' theme.
   Atlas and Settings fit on one screen; layouts pick a denser variant on short phones (result: by the height left after
   safe areas). The shop scrolls inside a tab only on very small phones; the one list meant to scroll is an Atlas
   region's cards, inside its sheet.
-- **Nothing important hides at the bottom of a list.** Side buttons open a sheet that says what the thing is and what
-  it gives (free coins, missions, streak, Daily Challenge, level rewards).
+- **One thing to do per screen.** Home is PLAY plus one "Today" button and Journey / Modes / Shop. A system is not on
+  screen until it is unlocked (`balance.unlocks`); no greyed-out placeholders. Sheets use `Row` lines: icon, title,
+  one line saying what it gives, the action on the right.
+- **Depth is a ledge, not a blur**: `shadow.card` / `shadow.soft` are a darker bottom edge.
 - **Idle screens are alive only while on top**: breathing PLAY, flickering flame and wobbling gift run only when the
   screen is focused; red dots pop in once and do not pulse.
 - Portrait only, game column max 520 dp, touch targets >= 48 dp, one font (Poppins), coin gold is the only colour
@@ -29,6 +31,7 @@ and the videos' theme.
 |---|---|---|
 | `Press` | components/ui.tsx | Every tappable thing. Springs to 0.93, plays `tap`, within 100 ms. |
 | `BigButton` | ui.tsx | The one primary action per screen. Accent, `sizes.big`, radius 28, icon from `Icon`, breathes only when `breathe`. |
+| `FpsMeter` | components/FpsMeter.tsx | Test overlay (Settings > FPS counter). |
 | `SmallButton` | ui.tsx | Secondary actions, `sizes.small`. `icon` (icon name) or `iconNode` (e.g. `<Coin />`). Gold = ad/coins, green = claim. |
 | `Sheet` + `SheetTitle` | ui.tsx | The one popup pattern: dim, white card radius 28, max 400, icon tile + title + close button; tap outside closes. |
 | `Dot` | ui.tsx | Red dot (or count) on anything claimable. Pops in once. |

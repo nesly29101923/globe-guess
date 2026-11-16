@@ -35,3 +35,6 @@
 - Round 3: map and app-wide performance, icons instead of emoji, type scale and equal HUD heights, equal answer sizes,
   no-scroll home / result / Journey / Quick Play / Atlas, shop tabs, explained free coins (see DECISIONS.md). Checked in
   the web preview at 390x844, 390x763 and 390x667, light and dark; fps still needs a real phone.
+- Round 4 (after the first iPhone run): FPS counter, theme context + cached styles, glow by layer opacity, ledges
+  instead of shadows, lean home (Today / Modes sheets), lean round and result. Next: read the FPS counter on the
+  phone per screen (UI vs JS) and fix what it shows.

@@ -103,3 +103,27 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - **Journey as chapter pages** swiped sideways, ten levels winding up to the boss on one screen, instead of one
   110-level vertical scroll. **Shop in tabs** (Power-ups / Maps / Buttons / Coins). **Atlas** regions as tiles; a region's
   cards open in a sheet (the one list that scrolls). **Quick Play** fits one screen.
+
+## Round 4 (iPhone test: still low fps with a lot of UI, screens crowded and confusing)
+- **Measure first: FPS counter** (Settings and pause menu, `settings.showFps`): UI-thread fps, JS-thread fps and the
+  longest frame of the last second. Which thread drops decides the next fix; without it we were guessing.
+- **Theme by context, styles cached.** Every `T` and `Icon` subscribed to the store to learn light/dark, and every
+  component instance built its own StyleSheet. Now one `ThemeProvider` at the root and one style table per palette.
+- **Glow pulses by layer opacity.** The glow canvas redrew full-screen every frame for the whole question; it is now
+  drawn once per question and its view's opacity animates (the compositor does it, no Skia redraw).
+- **Ledges instead of soft shadows** (`shadow.card/soft` are now a darker bottom edge). Note: React Native already gives
+  opaque views a precomputed shadow path, so shadows were not the big cost I first named; the ledge is the game look
+  and the cheapest thing to draw on both platforms.
+- **Celebration**: 4 bars (8 rays) with the transparency in the colour instead of 12 rays under a group opacity;
+  confetti 28/18.
+- **Home shows one thing to do.** PLAY with the chapter and one goal line; one "Today" button (streak, daily reward,
+  Daily Challenge, missions as a checklist in one sheet, with a count of what is waiting); Journey / Modes / Shop under
+  PLAY. Removed from home: free coins and the offer (now the first row of Shop > Coins, with what it gives), the
+  next-reward chip (level badge opens it), Atlas (a button in Journey), the 7-day calendar popup (the Today sheet
+  opens once a day instead), all locked placeholders.
+- **Systems appear when unlocked, not greyed out before** (`balance.unlocks`, new `missions: 4`). Missions still
+  count in the background before that; only the UI waits.
+- **Round**: one-line title card, difficulty as text next to "3/10", no topic chip, power-ups only if owned or being
+  taught (no "+" buttons that leave the round for the shop).
+- **Result**: score, rewards with the XP bar, one line of tags (streak, new cards, missions), Next. The Atlas card
+  flips and the mission bars are gone from this screen.

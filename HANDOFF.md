@@ -30,6 +30,16 @@ Android, fully offline, no account.
 - `crash-log.cmd` (phone on USB, developer mode on) launches the app and writes `crash-log.txt` via adb.
   `install-test.cmd` installs an APK over USB.
 
+## Round 4 notes
+
+- FPS counter: Settings (or the pause menu) > FPS counter. `UI` = drawing thread, `JS` = game logic, `ms` = longest
+  frame in the last second. Component: `src/components/FpsMeter.tsx`.
+- Theme: `ThemeProvider` in `src/app/_layout.tsx`; `usePalette()` / `useStyles()` read it (`src/theme/usePalette.ts`).
+- Home: `Today` and `Modes` sheets in `src/game/HomeScreen.tsx`. Free coins: Shop > Coins. Atlas: button in Journey.
+- What appears at which level: `balance.unlocks`.
+- iPhone test build without a paid account: `npx expo prebuild -p ios --clean`, open `ios/*.xcworkspace`, personal team,
+  unique bundle id, remove Push Notifications, scheme Run = Release.
+
 ## Round 3 notes (where things live)
 
 - Map: `src/map/MapCanvas.tsx` (three canvases: land, glow, target), `flightPaths` and `glowImage` in `src/map/shapes.ts`,
