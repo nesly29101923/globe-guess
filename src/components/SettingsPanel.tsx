@@ -12,7 +12,7 @@ import { Icon, type IconName } from './Icon';
 import { usePalette, useStyles } from '../theme/usePalette';
 import { Press, T } from './ui';
 
-type Toggle = 'sound' | 'music' | 'haptics' | 'notifications';
+type Toggle = 'sound' | 'music' | 'haptics' | 'notifications' | 'showFps';
 type Appearance = SaveState['settings']['appearance'];
 
 export function SettingsPanel({ compact }: { compact?: boolean }) {
@@ -34,6 +34,7 @@ export function SettingsPanel({ compact }: { compact?: boolean }) {
     { k: 'haptics', icon: 'vibrate', label: t('haptics') },
     { k: 'music', icon: 'music', label: t('music') },
     ...(compact ? [] : [{ k: 'notifications' as Toggle, icon: 'bell' as IconName, label: t('notifications') }]),
+    { k: 'showFps', icon: 'speedometer', label: t('show_fps') },
   ];
   return (
     <View>
