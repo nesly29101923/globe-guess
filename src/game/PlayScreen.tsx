@@ -7,8 +7,9 @@ import Animated, { Easing, cancelAnimation, runOnJS, useAnimatedStyle, useDerive
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { balance } from '../config/balance';
 import { COSMETICS } from '../config/cosmetics';
-import { Press, T } from '../components/ui';
-import { AnswerButton, AnswerPill, ComboBadge, FlagCard, PowerupButton, ProgressDots, TimerRing, TitleCard, type ButtonState } from '../components/round';
+import { Press, T, fitSize } from '../components/ui';
+import { Icon, ICONS } from '../components/Icon';
+import { AnswerButton, AnswerPill, ComboBadge, FlagCard, PowerupButton, ProgressDots, TimerRing, TitleCard, answerTextWidth, type ButtonState } from '../components/round';
 import { itemById, itemName } from '../data/gameData';
 import { haptic } from '../feedback/haptics';
 import { play, playCorrect } from '../feedback/sfx';
@@ -18,16 +19,17 @@ import { comboMultiplier, scoreFor } from '../logic/round';
 import type { PowerupId } from '../logic/save';
 import type { Answer, Question, QuizDef } from '../logic/types';
 import { easeInOut, frameItem, needsWrap, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
-import { MapCanvas } from '../map/MapCanvas';
+import { MapCanvas, type Flight } from '../map/MapCanvas';
 import { warmScene } from '../map/shapes';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
 import { useGame } from '../store/store';
-import { colors, layout, map as M, mapThemes, motion, radius, shadow, type Palette } from '../theme';
+import { layout, map as M, mapThemes, motion, radius, shadow, sizes, type, type Palette } from '../theme';
 import { survivalBatch } from './quizFactory';
 import { SecondChanceSheet } from './SecondChanceSheet';
 import { PauseSheet } from './PauseSheet';
 import { useIsDark, usePalette, useStyles } from '../theme/usePalette';
+import { createTicker } from './ticker';
 
 type Phase = 'fly' | 'ask' | 'offer' | 'reveal' | 'done';
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -39,11 +41,16 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const st = useStyles(make_st);
   const { width: SW, height: SH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const save = useGame((g) => g.save);
+  // only the parts of the save this screen shows: a change elsewhere in the save must not re-render the round
+  const mapThemeId = useGame((g) => g.save.cosmetics.mapTheme);
+  const buttonStyle = useGame((g) => g.save.cosmetics.buttonStyle);
+  const powerups = useGame((g) => g.save.powerups);
+  const secondChanceTaught = useGame((g) => g.save.taught.secondChance);
+  const playerLevel = useGame((g) => g.save.level);
   const update = useGame((g) => g.update);
   const W = Math.min(SW, layout.maxWidth);
   const dark = useIsDark();
-  const chosen = COSMETICS.find((c) => c.id === save.cosmetics.mapTheme)?.theme ?? 'classic';
+  const chosen = COSMETICS.find((c) => c.id === mapThemeId)?.theme ?? 'classic';
   const theme = mapThemes[chosen === 'classic' && dark ? 'night' : chosen] ?? mapThemes.classic;
 
   // ---- layout (portrait, answers in thumb reach)
@@ -52,7 +59,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const dotsY = top + titleH + 8;
   const showPowerups = initialQuiz.mode !== 'first';
   const bottomPad = Math.max(insets.bottom, 12);
-  const puH = showPowerups ? 70 : 0;
+  const puH = showPowerups ? sizes.big + 14 : 0;
   const gridH = 58 * 2 + 10;
   const gridTop = SH - bottomPad - puH - gridH - 8;
   const mapTop = dotsY + 34;
@@ -66,7 +73,9 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const [states, setStates] = useState<ButtonState[]>(['idle', 'idle', 'idle', 'idle']);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [combo, setCombo] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(quiz.timer);
+  // the countdown number changes every second: it lives in its own little store so only the timer re-renders
+  const seconds = useMemo(() => createTicker(initialQuiz.timer), [initialQuiz]);
+  const setSecondsLeft = seconds.set;
   const [frozen, setFrozen] = useState(false);
   const [usedFifty, setUsedFifty] = useState(false);
   const [lives, setLives] = useState<number>(balance.survival.lives);
@@ -97,13 +106,14 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const camTo = useSharedValue<Cam>(startCam);
   const camProgress = useSharedValue(1);
   const cam = useDerivedValue(() => zoomAt(camFrom.value, camTo.value, easeInOut(camProgress.value), M.zoomCurve));
+  const moving = useDerivedValue(() => (camProgress.value < 1 ? 1 : 0));
   const reveal = useSharedValue(0);
   const targetAlpha = useSharedValue(0);
   const dim = useSharedValue(0);
   const flagSmall = useSharedValue(0);
   const timerP = useSharedValue(1);
   const [wrap, setWrap] = useState(true);
-  const [view, setView] = useState<[number, number, number, number] | null>(null);
+  const [flight, setFlight] = useState<Flight>({ from: startCam, to: startCam });
   const prevScene = useRef(initialQuiz.questions[0]?.scene ?? 'world');
 
   useEffect(() => {
@@ -130,10 +140,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     setWrap(scene === 'world' && needsWrap([from, target, { ...target, w: Math.max(from.w, target.w) * 1.6 }], box, SH));
     camFrom.value = from;
     camTo.value = target;
-    // the area the camera ends on, with margin: fine map detail is built for it
-    const sc = box.W / target.w;
-    const m = 0.6 / sc * box.W;
-    setView([target.ux - box.fx / sc - m, target.uy - box.fy / sc - m, target.ux + (box.W - box.fx) / sc + m, target.uy + (SH - box.fy) / sc + m]);
+    // map detail is built for what this move shows (see flightPaths)
+    setFlight({ from, to: target });
     camProgress.value = 0;
     camProgress.value = withTiming(1, { duration: ms, easing: Easing.linear }, (fin) => {
       if (fin && onEnd) runOnJS(onEnd)();
@@ -466,6 +474,26 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
 
   const doneHere = useMemo(() => done.filter((d) => (scene === 'usa') === d.startsWith('US-')), [done, scene]);
 
+  // one text size for all four answers: a long name shrinks every answer, so the four always look the same
+  const btnW = (W - 24 - 84) / 2;
+  const answerFonts = useMemo(() => {
+    if (!q || isPickFlag) return [0, 1, 2, 3].map(() => ({ size: type.body, lines: 1 }));
+    const tw = answerTextWidth(btnW);
+    const names = q.options.map((o) => upper(itemName(o)));
+    const fits = names.map((n) => fitSize(n, type.body, tw, 12, 0.7));
+    // one size for all four (never below 12); names with spaces wrap to two lines at that size
+    const common = Math.max(12, Math.min(...fits.map((f) => f.size)));
+    const lines = Math.min(2, Math.max(...fits.map((f) => f.lines)));
+    // a single word too long for the button (LIECHTENSTEIN) gets its own smaller size on one line,
+    // instead of breaking mid-word or shrinking the other three
+    return names.map((n) => {
+      if (n.includes(' ')) return { size: common, lines };
+      const own = Math.floor(tw / (n.length * 0.7));
+      return own < common ? { size: Math.max(9, own), lines: 1 } : { size: common, lines };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q?.itemId, idx, btnW]);
+
   // automated play sessions (web only) read the current question here
   if (typeof document !== 'undefined') (globalThis as unknown as Record<string, unknown>).__round = { idx, phase, answer: q?.answer, mode: quiz.mode, n: quiz.questions.length, states };
 
@@ -474,15 +502,13 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const title = scene === 'usa' ? t('q_state') : isFlagQ ? t('q_flag') : isPickFlag ? t('q_pick_flag') : t('q_country');
   const chips = [upper(t(`topic_${scene === 'usa' ? 'usa' : quiz.topicLabel}` as never))];
   const tierChip = quiz.mode === 'daily' ? 'mixed' : quiz.mode === 'survival' ? q?.tier : quiz.tierLabel === 'boss' ? undefined : quiz.tierLabel;
-  const s = save;
   const offerSecond = phase === 'offer' && quiz.mode !== 'survival';
   const offerContinue = phase === 'offer' && quiz.mode === 'survival' && lives <= 0;
-  const btnW = (W - 24 - 84 - 12) / 2;
 
   return (
     <View style={StyleSheet.absoluteFill}>
       <MapCanvas width={SW} height={SH} box={box} scene={scene} topic={topic} cam={cam} targetId={q?.itemId ?? null} reveal={reveal}
-        targetAlpha={targetAlpha} dim={dim} done={doneHere} wrap={wrap} theme={theme} view={view} />
+        targetAlpha={targetAlpha} dim={dim} done={doneHere} wrap={wrap} theme={theme} flight={flight} moving={moving} />
       <Pressable style={StyleSheet.absoluteFill} onPress={skipWait} testID="skip-area" />
 
       {/* header */}
@@ -492,22 +518,17 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
         {quiz.mode === 'survival' ? (
           <View style={st.lives}>
             {Array.from({ length: balance.survival.lives }, (_, i) => (
-              <T key={i} size={20}>{i < lives ? '❤️' : '🤍'}</T>
+              <Icon key={i} name={i < lives ? 'heart' : 'heart-outline'} size={24} color={colors.heart} />
             ))}
-            <T size={14} weight="black" color={colors.ink}>{`  ${answers.filter((a) => a.correct).length}`}</T>
+            <View style={[st.survivalCount, shadow.soft]}><Icon name="check-bold" size={16} color={colors.correct} /><T size={type.label} weight="black">{String(answers.filter((a) => a.correct).length)}</T></View>
           </View>
         ) : (
           <ProgressDots total={quiz.questions.length} index={idx} results={results} />
         )}
       </View>
-      <Press onPress={pause} style={[st.close, { top: top + 4, right: (SW - W) / 2 + 4 }]} testID="pause">
-        <View style={[st.closeInner, shadow.soft]}><T size={13} weight="black" color={colors.inkSoft}>⚙</T></View>
+      <Press onPress={pause} style={[st.close, { top: top - 2, right: (SW - W) / 2 + 2 }]} testID="pause" hitSlop={10}>
+        <View style={[st.closeInner, shadow.soft]}><Icon name="pause" size={20} color={colors.inkSoft} /></View>
       </Press>
-      {quiz.mode !== 'first' ? (
-        <Press onPress={pause} style={[st.close, { top: top + 4, left: (SW - W) / 2 + 4 }]} testID="quit">
-          <View style={[st.closeInner, shadow.soft]}><T size={14} weight="black" color={colors.inkSoft}>✕</T></View>
-        </Press>
-      ) : null}
 
       {/* flag card */}
       {(isFlagQ) && q ? (
@@ -517,7 +538,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
       ) : null}
       {isPickFlag && q ? (
         <View style={[st.flagWrap, { top: (mapTop + mapBottom) / 2 - 40 }]} pointerEvents="none">
-          <View style={[st.namePrompt, shadow.card]}><T size={22} weight="black" center>{upper(itemName(q.itemId))}</T></View>
+          <View style={[st.namePrompt, shadow.card]}><T size={type.title} weight="black" center>{upper(itemName(q.itemId))}</T></View>
         </View>
       ) : null}
 
@@ -530,7 +551,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
       </View>
       {scorePop ? <ScorePop key={scorePop.k} value={scorePop.v} combo={combo} y={gridTop - 40} /> : null}
       {hint && phase === 'ask' ? (
-        <View style={[st.hint, { top: gridTop - 44 }]} pointerEvents="none"><T size={15} weight="bold" color={colors.ink}>{t('hint_first')}</T></View>
+        <View style={[st.hint, { top: gridTop - 44 }]} pointerEvents="none"><T size={type.body} weight="bold" color={colors.ink}>{t('hint_first')}</T></View>
       ) : null}
 
       {/* answers 2x2 with the timer between them, like the videos */}
@@ -543,15 +564,15 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
                 return (
                   <View key={col} style={{ width: btnW }}>
                     <AnswerButton letter={LETTERS[i]} label={itemName(q.options[i])} flagId={isPickFlag ? q.options[i] : undefined}
-                      state={states[i]} index={i} revealKey={phase === 'fly' ? `${idx}-fly` : `${idx}`} disabled={phase !== 'ask'} skin={s.cosmetics.buttonStyle}
-                      onPress={() => answer(i)} testID={`answer-${i}`} width={btnW} />
+                      state={states[i]} index={i} revealKey={phase === 'fly' ? `${idx}-fly` : `${idx}`} disabled={phase !== 'ask'} skin={buttonStyle}
+                      onPress={() => answer(i)} testID={`answer-${i}`} width={btnW} fontSize={answerFonts[i].size} lines={answerFonts[i].lines} />
                   </View>
                 );
-              }).reduce<React.ReactNode[]>((acc, el, j) => (j === 1 ? [...acc, <View key="gap" style={{ width: 84 + 12 }} />, el] : [...acc, el]), [])}
+              }).reduce<React.ReactNode[]>((acc, el, j) => (j === 1 ? [...acc, <View key="gap" style={{ width: 84 }} />, el] : [...acc, el]), [])}
             </View>
           ))}
           <View style={[st.timer, { left: (W - 24) / 2 - 38 }]} pointerEvents="none">
-            {!(globalThis as unknown as { __mapDebug?: Record<string, boolean> }).__mapDebug?.noTimer ? <TimerRing progress={timerP} secondsLeft={secondsLeft} frozen={frozen} /> : null}
+            {!(globalThis as unknown as { __mapDebug?: Record<string, boolean> }).__mapDebug?.noTimer ? <TimerRing progress={timerP} seconds={seconds} frozen={frozen} /> : null}
           </View>
         </View>
       ) : null}
@@ -563,8 +584,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
             const notHere = id === 'skip' && (quiz.mode === 'daily' || quiz.mode === 'survival');
             if (notHere) return null;
             return (
-              <PowerupButton key={id} icon={id === 'fiftyFifty' ? '½' : id === 'freeze' ? '❄️' : '⏭️'} label={t(`pu_${id}` as never)}
-                count={s.powerups[id]} free={teach === id} highlight={teach === id}
+              <PowerupButton key={id} icon={ICONS[id]} label={t(`pu_${id}` as never)}
+                count={powerups[id]} free={teach === id} highlight={teach === id}
                 disabled={phase !== 'ask' || (id === 'fiftyFifty' && usedFifty) || (id === 'freeze' && frozen)}
                 onPress={() => usePU(id)} testID={`pu-${id}`} />
             );
@@ -573,12 +594,12 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
       ) : null}
       {teach && phase === 'ask' ? (
         <View style={[st.teach, { top: gridTop - 40 }]} pointerEvents="none">
-          <View style={[st.teachBubble, shadow.card]}><T size={13} weight="bold" color={colors.white}>{t(`pu_teach_${teach}` as never)}</T></View>
+          <View style={[st.teachBubble, shadow.card]}><T size={type.label} weight="bold" color={colors.white}>{t(`pu_teach_${teach}` as never)}</T></View>
         </View>
       ) : null}
 
       {offerSecond ? (
-        <SecondChanceSheet onPick={onSecondChance} items={s.powerups.secondChance} free={!s.taught.secondChance && s.level >= balance.powerupTeachAtLevel.secondChance}
+        <SecondChanceSheet onPick={onSecondChance} items={powerups.secondChance} free={!secondChanceTaught && playerLevel >= balance.powerupTeachAtLevel.secondChance}
           adOk={secondChanceUsedRound < balance.ads.rewardedSecondChancePerRound && ads.rewardedReady() && !useGame.getState().session.firstSession} />
       ) : null}
       {paused ? <PauseSheet onResume={resume} onQuit={quiz.mode === 'first' ? undefined : onQuit} /> : null}
@@ -600,8 +621,8 @@ function ScorePop({ value, combo, y }: { value: number; combo: number; y: number
   }));
   return (
     <Animated.View style={[st.scorePop, { top: y }, a]} pointerEvents="none">
-      <T size={combo >= 3 ? 30 : 24} weight="black" color={combo >= 5 ? colors.flame : colors.correct} style={st.scoreShadow}>{`+${value}`}</T>
-      {combo >= 2 ? <T size={13} weight="black" color={colors.ink}>{`x${comboMultiplier(combo)}`}</T> : null}
+      <T size={combo >= 3 ? type.display : type.title + 4} weight="black" color={combo >= 5 ? colors.flame : colors.correct} style={st.scoreShadow}>{`+${value}`}</T>
+      {combo >= 2 ? <T size={type.label} weight="black" color={colors.ink}>{`x${comboMultiplier(combo)}`}</T> : null}
     </Animated.View>
   );
 }
@@ -609,8 +630,9 @@ function ScorePop({ value, combo, y }: { value: number; combo: number; y: number
 const make_st = (colors: Palette) => StyleSheet.create({
   col: { position: 'absolute', paddingHorizontal: 12 },
   lives: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  survivalCount: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 10, height: 28 },
   close: { position: 'absolute', zIndex: 5 },
-  closeInner: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  closeInner: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   flagWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   namePrompt: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 22, paddingVertical: 14, maxWidth: '86%' },
   pillWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },

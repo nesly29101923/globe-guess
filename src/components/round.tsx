@@ -11,7 +11,9 @@ import Animated, {
 import { BUTTON_STYLES } from '../config/cosmetics';
 import { FLAG_IMAGES } from '../data/flagImages';
 import { t, upper } from '../i18n/strings';
-import { colors, fonts, motion, radius, shadow, tierColors, type Palette } from '../theme';
+import { fonts, motion, radius, shadow, sizes, tierColors, type, type Palette } from '../theme';
+import { useTicker, type Ticker } from '../game/ticker';
+import { Icon, type IconName } from './Icon';
 import { fitSize, Press, T } from './ui';
 import { usePalette, useStyles } from '../theme/usePalette';
 
@@ -26,19 +28,19 @@ export function TitleCard({ title, chips, tier, style }: { title: string; chips:
     v.value = withSpring(1, motion.springSoft);
   }, [title, v]);
   const a = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * -24 }] }));
-  const f = fitSize(title, 24, 330, 16, 0.66);
+  const f = fitSize(title, type.title + 2, 300, 16, 0.66);
   return (
     <Animated.View style={[st.title, shadow.card, style, a]}>
       <T size={f.size} weight="black" center lines={1} shrink>{title}</T>
       <View style={st.chips}>
         {chips.map((c) => (
           <View key={c} style={[st.chip, { backgroundColor: colors.chip }]}>
-            <T size={11} weight="bold">{c}</T>
+            <T size={type.caption} weight="bold">{c}</T>
           </View>
         ))}
         {tier ? (
           <View style={[st.chip, { backgroundColor: tierColors[tier] ?? colors.accent }]}>
-            <T size={11} weight="bold" color={colors.white}>{upper(t(`tier_${tier}` as never))}</T>
+            <T size={type.caption} weight="bold" color={colors.white}>{upper(t(`tier_${tier}` as never))}</T>
           </View>
         ) : null}
       </View>
@@ -60,7 +62,7 @@ export function ProgressDots({ total, index, results }: { total: number; index: 
           return <Dot key={i} bg={bg} current={i === index} edge={r == null && i !== index} />;
         })}
       </View>
-      <T size={11} weight="bold" color="rgba(15,23,42,0.67)">{`${Math.min(index + 1, total)}/${total}`}</T>
+      <T size={type.caption} weight="bold" color={colors.inkSoft}>{`${Math.min(index + 1, total)}/${total}`}</T>
     </View>
   );
 }
@@ -78,9 +80,10 @@ function Dot({ bg, current, edge }: { bg: string; current: boolean; edge: boolea
 
 // ---------------------------------------------------------------- timer ring
 
-export function TimerRing({ progress, secondsLeft, size = 76, frozen }: { progress: SharedValue<number>; secondsLeft: number; size?: number; frozen?: boolean }) {
+export function TimerRing({ progress, seconds, size = 76, frozen }: { progress: SharedValue<number>; seconds: Ticker; size?: number; frozen?: boolean }) {
   const colors = usePalette();
   const st = useStyles(make_st);
+  const secondsLeft = useTicker(seconds);
   const stroke = 8;
   const r = size / 2 - stroke / 2 - 4;
   const path = useMemo(() => {
@@ -105,7 +108,7 @@ export function TimerRing({ progress, secondsLeft, size = 76, frozen }: { progre
         <Path path={path} color={frozen ? '#38BDF8' : color} style="stroke" strokeWidth={stroke} strokeCap="round" end={progress} />
       </Canvas>
       <Animated.View style={[StyleSheet.absoluteFill, st.center, a]}>
-        <T size={frozen ? 24 : 30} weight="black" color={urgent ? colors.wrong : colors.ink}>{frozen ? '❄' : String(Math.max(0, secondsLeft))}</T>
+        {frozen ? <Icon name="snowflake" size={30} color="#0EA5E9" /> : <T size={type.display - 2} weight="black" color={urgent ? colors.wrong : colors.ink}>{String(Math.max(0, secondsLeft))}</T>}
       </Animated.View>
     </View>
   );
@@ -115,11 +118,16 @@ export function TimerRing({ progress, secondsLeft, size = 76, frozen }: { progre
 
 export type ButtonState = 'idle' | 'correct' | 'wrong' | 'faded' | 'removed';
 
+/** Room for the answer text inside a button of width w (letter badge, gaps and the tick/cross slot taken off). */
+export function answerTextWidth(w: number): number {
+  return w - 16 - 26 - 6 - 4;
+}
+
 export function AnswerButton({
-  letter, label, flagId, state, onPress, index, disabled, skin = 'btn_classic', revealKey, testID, width = 140,
+  letter, label, flagId, state, onPress, index, disabled, skin = 'btn_classic', revealKey, testID, width = 140, fontSize, lines,
 }: {
   letter: string; label: string; flagId?: string; state: ButtonState; onPress: () => void; index: number; disabled: boolean;
-  skin?: string; revealKey: string; testID?: string; width?: number;
+  skin?: string; revealKey: string; testID?: string; width?: number; fontSize?: number; lines?: number;
 }) {
   const colors = usePalette();
   const st = useStyles(make_st);
@@ -164,13 +172,15 @@ export function AnswerButton({
   const isWrong = state === 'wrong';
   const isRight = state === 'correct';
   const textColor = isWrong || isRight ? colors.white : sk.text;
-  const f = fitSize(upper(label), 15, width - 26 - 16 - 24, 10, 0.78);
+  // the round passes one size for all four answers; this is only the fallback
+  const f = fontSize ? { size: fontSize, lines: lines ?? 1 } : fitSize(upper(label), type.body, answerTextWidth(width), 11, 0.7);
   return (
     <Animated.View style={[st.answerWrap, a]}>
       <Press onPress={onPress} disabled={disabled || state === 'removed'} sound={null} scaleTo={0.94} testID={testID}>
         <Animated.View style={[st.answer, shadow.card, sk.border ? { borderWidth: 2, borderColor: sk.border } : null, bgA]}>
           <View style={[st.letter, { backgroundColor: isRight || isWrong ? 'rgba(255,255,255,0.25)' : sk.badgeBg }]}>
-            <T size={13} weight="black" color={isRight || isWrong ? colors.white : sk.badgeText}>{letter}</T>
+            {isRight ? <Icon name="check-bold" size={16} color={colors.white} /> : isWrong ? <Icon name="close-thick" size={16} color={colors.white} />
+              : <T size={type.label} weight="black" color={sk.badgeText}>{letter}</T>}
           </View>
           {flagId ? (
             <View style={st.flagSlot}>
@@ -181,7 +191,7 @@ export function AnswerButton({
               <T size={f.size} weight="bold" color={textColor} lines={f.lines} center shrink>{upper(label)}</T>
             </View>
           )}
-          {isRight ? <T size={16} color={colors.white}>✓</T> : isWrong ? <T size={16} color={colors.white}>✕</T> : <View style={{ width: 4 }} />}
+          <View style={{ width: 4 }} />
         </Animated.View>
       </Press>
     </Animated.View>
@@ -208,7 +218,10 @@ export function ComboBadge({ combo }: { combo: number }) {
     <Animated.View style={[st.combo, a]} pointerEvents="none">
       {hot ? <Animated.View style={[st.comboGlow, { backgroundColor: bg }, glow]} /> : null}
       <View style={[st.comboPill, { backgroundColor: bg }, shadow.card]}>
-        <T size={11} weight="bold" color={colors.white}>{combo >= 5 ? '🔥 ' : ''}{t('combo')}</T>
+        <View style={st.comboHead}>
+          {combo >= 5 ? <Icon name="fire" size={14} color={colors.white} /> : null}
+          <T size={type.caption} weight="bold" color={colors.white}>{t('combo')}</T>
+        </View>
         <T size={combo >= 5 ? 26 : combo >= 3 ? 23 : 20} weight="black" color={colors.white}>{`x${Math.min(combo, 5)}`}</T>
       </View>
     </Animated.View>
@@ -230,12 +243,12 @@ export function AnswerPill(props: { name: string; correct: boolean; flagId?: str
     v.value = visible ? withSpring(1, motion.spring) : withTiming(0, { duration: motion.exit });
   }, [visible, v, name]);
   const a = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ scale: 0.6 + 0.4 * v.value }, { translateY: (1 - v.value) * 12 }] }));
-  const f = fitSize(upper(name), 22, 260, 13, 0.66);
+  const f = fitSize(upper(name), type.title, 260, 13, 0.66);
   return (
     <Animated.View style={[st.pill, shadow.card, a]} pointerEvents="none">
       {flagId && FLAG_IMAGES[flagId] ? <Image source={FLAG_IMAGES[flagId]} style={st.pillFlag} contentFit="cover" /> : (
         <View style={[st.pillIcon, { backgroundColor: correct ? colors.correct : colors.wrong }]}>
-          <T size={14} weight="black" color={colors.white}>{correct ? '✓' : '!'}</T>
+          <Icon name={correct ? 'check-bold' : 'exclamation-thick'} size={16} color={colors.white} />
         </View>
       )}
       <T size={f.size} weight="black" lines={f.lines} shrink>{upper(name)}</T>
@@ -269,7 +282,7 @@ export function FlagCard({ flagId, small, width }: { flagId: string; small: Shar
 // ---------------------------------------------------------------- power-up button
 
 export function PowerupButton({ icon, label, count, onPress, disabled, highlight, free, testID }: {
-  icon: string; label: string; count: number; onPress: () => void; disabled?: boolean; highlight?: boolean; free?: boolean; testID?: string;
+  icon: IconName; label: string; count: number; onPress: () => void; disabled?: boolean; highlight?: boolean; free?: boolean; testID?: string;
 }) {
   const colors = usePalette();
   const st = useStyles(make_st);
@@ -282,10 +295,10 @@ export function PowerupButton({ icon, label, count, onPress, disabled, highlight
     <Animated.View style={a}>
       <Press onPress={onPress} disabled={disabled} sound="powerup" testID={testID}>
         <View style={[st.pu, shadow.soft, highlight && st.puHot, disabled && { opacity: 0.4 }]}>
-          <T size={18}>{icon}</T>
-          <T size={10} weight="bold" color={colors.inkSoft}>{label}</T>
+          <Icon name={icon} size={24} color={colors.accent} />
+          <T size={type.caption} weight="bold" color={colors.inkSoft} lines={1}>{label}</T>
           <View style={[st.puCount, { backgroundColor: free ? colors.correct : count > 0 ? colors.accent : colors.gold }]}>
-            <T size={10} weight="black" color={colors.white}>{free ? t('free') : count > 0 ? String(count) : '+'}</T>
+            {free || count > 0 ? <T size={type.caption} weight="black" color={colors.white}>{free ? t('free') : String(count)}</T> : <Icon name="plus-thick" size={12} color={colors.white} />}
           </View>
         </View>
       </Press>
@@ -303,7 +316,9 @@ const make_st = (colors: Palette) => StyleSheet.create({
   timerDisc: { backgroundColor: colors.surface, borderRadius: 999 },
   center: { alignItems: 'center', justifyContent: 'center' },
   answerWrap: { flex: 1 },
-  answer: { minHeight: 58, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, gap: 6 },
+  answer: { height: 58, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, gap: 6 },
+  mark: { width: 18, alignItems: 'center' },
+  comboHead: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   letter: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   answerTextBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
   flagSlot: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
@@ -315,9 +330,22 @@ const make_st = (colors: Palette) => StyleSheet.create({
   pillIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pillFlag: { width: 34, height: 25, borderRadius: 4 },
   flagCard: { backgroundColor: colors.surface, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
-  pu: { width: 62, height: 58, borderRadius: radius.lg, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  pu: { width: 76, height: sizes.big, borderRadius: radius.lg, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 1 },
   puHot: { borderWidth: 2.5, borderColor: colors.correct },
   puCount: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
 });
 
 export { fonts };
+
+// ---------------------------------------------------------------- daily grid (right / wrong squares)
+
+export function GridSquares({ results, size = 18 }: { results: boolean[]; size?: number }) {
+  const colors = usePalette();
+  return (
+    <View style={{ flexDirection: 'row', gap: 4, paddingVertical: 4 }}>
+      {results.map((r, i) => (
+        <View key={i} style={{ width: size, height: size, borderRadius: 4, backgroundColor: r ? colors.correct : colors.wrong }} />
+      ))}
+    </View>
+  );
+}

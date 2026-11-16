@@ -1,10 +1,11 @@
 // Screen-wide effects: coins that fly to the counter, XP sparks, confetti. One layer at the root.
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import { haptic } from '../feedback/haptics';
 import { playCoin } from '../feedback/sfx';
 import { colors } from '../theme';
+import { Icon } from './Icon';
 
 type Pt = { x: number; y: number };
 type Burst =
@@ -24,7 +25,7 @@ export const fx = {
   },
   coins(from: Pt, n: number, opts: { to?: 'coins' | 'xp'; onLand?: () => void; onDone?: () => void } = {}) {
     const to = fx.target(opts.to ?? 'coins');
-    push?.({ id: seq++, kind: 'coins', from, to, n: Math.max(1, Math.min(12, n)), icon: opts.to === 'xp' ? '✦' : '●', onLand: opts.onLand, onDone: opts.onDone });
+    push?.({ id: seq++, kind: 'coins', from, to, n: Math.max(1, Math.min(12, n)), icon: opts.to === 'xp' ? 'xp' : 'coin', onLand: opts.onLand, onDone: opts.onDone });
   },
   confetti(big = false) {
     push?.({ id: seq++, kind: 'confetti', big });
@@ -94,8 +95,8 @@ function FlyingCoin({ i, from, to, icon, onLand }: { i: number; from: Pt; to: Pt
     return { opacity: k < 0.98 ? 1 : 0, transform: [{ translateX: x - 11 }, { translateY: y - 11 }, { scale: 1 - 0.35 * k }] };
   });
   return (
-    <Animated.View style={[st.coin, icon === '✦' && st.xp, a]}>
-      <Text style={st.coinText}>{icon === '✦' ? '✦' : ''}</Text>
+    <Animated.View style={[st.coin, icon === 'xp' && st.xp, a]}>
+      {icon === 'xp' ? <Icon name="star-four-points" size={12} color="#FFFFFF" /> : <View style={st.coinInner} />}
     </Animated.View>
   );
 }
@@ -104,7 +105,7 @@ const CONFETTI_COLORS = [colors.accent, colors.correct, colors.gold, '#0EA5E9', 
 
 function Confetti({ big, onEnd }: { big: boolean; onEnd: () => void }) {
   const { width, height } = useWindowDimensions();
-  const n = big ? 60 : 32;
+  const n = big ? 40 : 24; // each piece is an animated view: enough to read as a burst, few enough for 60 fps
   const end = useRef(onEnd).current;
   useEffect(() => {
     const h = setTimeout(end, 2600);
@@ -139,8 +140,8 @@ function Piece({ i, W, H }: { i: number; W: number; H: number }) {
 }
 
 const st = StyleSheet.create({
-  coin: { position: 'absolute', left: 0, top: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FCD34D', alignItems: 'center', justifyContent: 'center' },
+  coin: { position: 'absolute', left: 0, top: 0, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.gold, borderWidth: 2, borderColor: '#D97706', alignItems: 'center', justifyContent: 'center' },
   xp: { backgroundColor: colors.accent, borderColor: '#C4B5FD' },
-  coinText: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  coinInner: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#FCD34D', backgroundColor: '#FBBF24' },
   piece: { position: 'absolute', left: 0, top: 0, borderRadius: 2 },
 });
