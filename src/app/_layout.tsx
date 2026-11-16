@@ -17,12 +17,14 @@ import { installRealProviders } from '../services/real';
 import { remoteConfig } from '../services/remoteConfig';
 import { flushSave, useGame } from '../store/store';
 import { fontFiles } from '../theme';
+import { iconFont } from '../components/Icon';
 import { useIsDark, usePalette } from '../theme/usePalette';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts(fontFiles);
+  // the icon font loads with the text fonts, so no icon pops in late
+  const [fontsLoaded, fontError] = useFonts({ ...fontFiles, ...iconFont });
   const ready = useGame((g) => g.ready);
   const dark = useIsDark();
   const pal = usePalette();
@@ -55,7 +57,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style={dark ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: pal.bg } }} />
+        {/* freezeOnBlur: screens under the top one (home under a round) stop re-rendering while hidden */}
+        <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: pal.bg }, freezeOnBlur: true }} />
         <FxLayer />
         <PromptHost />
         <AdHost />

@@ -6,8 +6,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { haptic } from '../feedback/haptics';
 import { play, type Sfx } from '../feedback/sfx';
-import { colors, fonts, motion, radius, shadow, type Palette } from '../theme';
+import { colors, fonts, motion, radius, shadow, sizes, type, type Palette } from '../theme';
 import { usePalette, useStyles } from '../theme/usePalette';
+import { Icon, type IconName } from './Icon';
 
 /** Every tap answers within 100 ms: press-down spring, sound, light haptic. */
 export function Press({
@@ -51,7 +52,7 @@ export function T({ children, style, size = 16, weight = 'bold', color, lines, c
       allowFontScaling={false}
       numberOfLines={lines}
       adjustsFontSizeToFit={shrink}
-      minimumFontScale={0.6}
+      minimumFontScale={0.7}
       style={[{ fontFamily: fonts[weight], fontSize: size, color: color ?? pal.ink, textAlign: center ? 'center' : undefined, includeFontPadding: false }, style]}
     >
       {children}
@@ -120,14 +121,14 @@ export function Chip({ label, bg, color, style }: { label: string; bg?: string; 
   const styles = useStyles(make_styles);
   return (
     <View style={[styles.chip, { backgroundColor: bg ?? colors.chip }, style]}>
-      <T size={12} weight="bold" color={color ?? colors.ink}>{label}</T>
+      <T size={type.caption} weight="bold" color={color ?? colors.ink}>{label}</T>
     </View>
   );
 }
 
 /** The one primary action per screen: big, accent, breathing slowly when idle. */
 export function BigButton({ label, onPress, color = colors.accent, textColor = colors.white, breathe, icon, sub, disabled, testID, style }: {
-  label: string; onPress: () => void; color?: string; textColor?: string; breathe?: boolean; icon?: string; sub?: string;
+  label: string; onPress: () => void; color?: string; textColor?: string; breathe?: boolean; icon?: IconName; sub?: string;
   disabled?: boolean; testID?: string; style?: StyleProp<ViewStyle>;
 }) {
   const colors = usePalette();
@@ -143,18 +144,18 @@ export function BigButton({ label, onPress, color = colors.accent, textColor = c
       <Press onPress={onPress} disabled={disabled} testID={testID}>
         <View style={[styles.big, { backgroundColor: disabled ? colors.disabled : color }, shadow.card]}>
           <View style={styles.bigInner}>
-            {icon ? <T size={22}>{icon}</T> : null}
-            <T size={20} weight="black" color={textColor}>{label}</T>
+            {icon ? <Icon name={icon} size={24} color={textColor} /> : null}
+            <T size={type.title} weight="black" color={textColor} lines={1} shrink>{label}</T>
           </View>
-          {sub ? <T size={12} weight="semi" color={textColor} style={{ opacity: 0.85 }}>{sub}</T> : null}
+          {sub ? <T size={type.caption} weight="semi" color={textColor} style={{ opacity: 0.85 }}>{sub}</T> : null}
         </View>
       </Press>
     </Animated.View>
   );
 }
 
-export function SmallButton({ label, onPress, icon, color: colorIn, textColor: textIn, disabled, testID, style }: {
-  label: string; onPress: () => void; icon?: string; color?: string; textColor?: string; disabled?: boolean; testID?: string;
+export function SmallButton({ label, onPress, icon, iconNode, color: colorIn, textColor: textIn, disabled, testID, style }: {
+  label: string; onPress: () => void; icon?: IconName; iconNode?: React.ReactNode; color?: string; textColor?: string; disabled?: boolean; testID?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const colors = usePalette();
@@ -164,8 +165,8 @@ export function SmallButton({ label, onPress, icon, color: colorIn, textColor: t
   return (
     <Press onPress={onPress} disabled={disabled} testID={testID} style={style}>
       <View style={[styles.small, { backgroundColor: disabled ? colors.chip : color, opacity: disabled ? 0.6 : 1 }, shadow.soft]}>
-        {icon ? <T size={16}>{icon}</T> : null}
-        <T size={14} weight="bold" color={disabled ? colors.inkSoft : textColor}>{label}</T>
+        {iconNode ?? (icon ? <Icon name={icon} size={18} color={disabled ? colors.inkSoft : textColor} /> : null)}
+        <T size={type.body} weight="bold" color={disabled ? colors.inkSoft : textColor} lines={1} shrink>{label}</T>
       </View>
     </Press>
   );
@@ -181,15 +182,44 @@ export function PopIn({ children, delay = 0, style, from = 0.6 }: { children: Re
   return <Animated.View style={[style, a]}>{children}</Animated.View>;
 }
 
-/** A red dot for anything claimable. */
-export function Dot({ style }: { style?: StyleProp<ViewStyle> }) {
+/** A red dot for anything claimable. Pops in once; it does not pulse forever (a screen that animates
+ *  without reason keeps the phone redrawing every frame). */
+export function Dot({ style, count }: { style?: StyleProp<ViewStyle>; count?: number }) {
   const styles = useStyles(make_styles);
-  const v = useSharedValue(1);
-  useEffect(() => {
-    v.value = withRepeat(withSequence(withTiming(1.25, { duration: 500 }), withTiming(1, { duration: 500 })), -1);
-  }, [v]);
-  const a = useAnimatedStyle(() => ({ transform: [{ scale: v.value }] }));
-  return <Animated.View style={[styles.dot, style, a]} />;
+  return (
+    <PopIn style={[count ? styles.countDot : styles.dot, style]}>
+      {count ? <T size={type.caption} weight="black" color="#FFFFFF">{String(count)}</T> : null}
+    </PopIn>
+  );
+}
+
+/** The one popup pattern: dim background, card, tap outside to close. */
+export function Sheet({ children, onClose, testID, style }: { children: React.ReactNode; onClose?: () => void; testID?: string; style?: StyleProp<ViewStyle> }) {
+  const styles = useStyles(make_styles);
+  return (
+    <View style={styles.dim} testID={testID}>
+      {onClose ? <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="close" /> : null}
+      <PopIn style={[styles.sheet, shadow.card, style]}>{children}</PopIn>
+    </View>
+  );
+}
+
+/** Sheet header: icon, title, optional close button. */
+export function SheetTitle({ title, icon, iconColor, onClose }: { title: string; icon?: React.ReactNode; iconColor?: string; onClose?: () => void }) {
+  const colors = usePalette();
+  const styles = useStyles(make_styles);
+  void iconColor;
+  return (
+    <View style={styles.sheetHead}>
+      {icon ? <View style={styles.sheetIcon}>{icon}</View> : null}
+      <T size={type.title} weight="black" style={{ flex: 1 }} lines={1} shrink>{title}</T>
+      {onClose ? (
+        <Press onPress={onClose} testID="sheet-close">
+          <View style={styles.sheetClose}><Icon name="close-thick" size={18} color={colors.inkSoft} /></View>
+        </Press>
+      ) : null}
+    </View>
+  );
 }
 
 export function ProgressBar({ value, color = colors.accent, height = 10, track: trackIn }: { value: number; color?: string; height?: number; track?: string }) {
@@ -209,8 +239,14 @@ export function ProgressBar({ value, color = colors.accent, height = 10, track: 
 export const make_styles = (colors: Palette) => StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 16, ...shadow.card },
   chip: { paddingHorizontal: 10, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  big: { minHeight: 62, borderRadius: radius.xl, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
-  bigInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  small: { minHeight: 48, borderRadius: radius.lg, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  dot: { position: 'absolute', top: -3, right: -3, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.wrong, borderWidth: 2, borderColor: colors.white },
+  big: { height: sizes.big, borderRadius: radius.xl, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
+  bigInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  small: { height: sizes.small, borderRadius: radius.lg, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  dot: { position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: colors.wrong, borderWidth: 2, borderColor: colors.white },
+  countDot: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: colors.wrong, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.55)', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 60 },
+  sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 18, gap: 12, width: '100%', maxWidth: 400 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sheetIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  sheetClose: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
 });

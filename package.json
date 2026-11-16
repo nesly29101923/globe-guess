@@ -4,6 +4,7 @@
   "main": "index",
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
+    "@expo/vector-icons": "^15.1.1",
     "@shopify/react-native-skia": "2.14.0",
     "expo": "~58.0.25",
     "expo-audio": "~58.0.12",

@@ -142,8 +142,29 @@ export const fontFiles = {
   'Poppins-SemiBold': require('../../assets/fonts/Poppins-SemiBold.ttf'),
 };
 
-/** Design sizes are for a 390-wide phone (the studio's 1080 canvas / 2.77). Use `S(n)` to scale. */
+/** Design sizes are for a 390-wide phone (the studio's 1080 canvas / 2.77). */
 export const radius = { sm: 12, md: 16, lg: 22, xl: 28, pill: 999 };
+
+/** The type scale. Every text uses one of these sizes, so the same role always has the same size. */
+export const type = {
+  hero: 56,     // the big score number
+  display: 32,  // result headline, celebration title
+  title: 22,    // screen titles, sheet titles, question title
+  heading: 17,  // card titles, primary labels
+  body: 15,     // answers, rows, buttons
+  label: 13,    // secondary labels, chips text, counters
+  caption: 11,  // small captions under icons
+};
+
+/** Shared control sizes: everything in one row has the same height. */
+export const sizes = {
+  hud: 44,      // top bar pills and icon buttons
+  touch: 48,    // smallest tappable
+  rail: 58,     // home side buttons
+  dock: 62,     // bottom dock buttons
+  big: 62,      // primary button height
+  small: 48,    // secondary button height
+};
 
 export const shadow = {
   card: {
