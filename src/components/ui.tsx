@@ -178,7 +178,8 @@ export function PopIn({ children, delay = 0, style, from = 0.6 }: { children: Re
   useEffect(() => {
     v.value = withDelay(delay, withSpring(1, motion.spring));
   }, [delay, v]);
-  const a = useAnimatedStyle(() => ({ opacity: Math.min(1, v.value * 1.6), transform: [{ scale: from + (1 - from) * v.value }] }));
+  // hidden until it starts, then fully opaque: a half-transparent container is drawn off-screen every frame
+  const a = useAnimatedStyle(() => ({ opacity: v.value > 0.02 ? 1 : 0, transform: [{ scale: from + (1 - from) * v.value }] }));
   return <Animated.View style={[style, a]}>{children}</Animated.View>;
 }
 
@@ -197,10 +198,50 @@ export function Dot({ style, count }: { style?: StyleProp<ViewStyle>; count?: nu
 export function Sheet({ children, onClose, testID, style }: { children: React.ReactNode; onClose?: () => void; testID?: string; style?: StyleProp<ViewStyle> }) {
   const styles = useStyles(make_styles);
   return (
-    <View style={styles.dim} testID={testID}>
+    <View style={styles.dimWrap} testID={testID}>
+      <FadeIn style={styles.dimFill} />
       {onClose ? <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="close" /> : null}
-      <PopIn style={[styles.sheet, shadow.card, style]}>{children}</PopIn>
+      <RiseIn style={[styles.sheet, shadow.card, style]}>{children}</RiseIn>
     </View>
+  );
+}
+
+/** A flat colour fading in (the dim behind a sheet): one layer, cheap. */
+function FadeIn({ style }: { style?: StyleProp<ViewStyle> }) {
+  const v = useSharedValue(0);
+  useEffect(() => {
+    v.value = withTiming(1, { duration: 160 });
+  }, [v]);
+  const a = useAnimatedStyle(() => ({ opacity: v.value }));
+  return <Animated.View style={[style, a]} pointerEvents="none" />;
+}
+
+/** A sheet arrives by moving and scaling only. Fading a whole card with all its children makes the phone draw the
+ *  card off-screen and blend it every frame; a transform reuses the drawn layers. */
+function RiseIn({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const v = useSharedValue(0);
+  useEffect(() => {
+    v.value = withSpring(1, { damping: 16, stiffness: 240, mass: 0.7 });
+  }, [v]);
+  const a = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - v.value) * 40 }, { scale: 0.92 + 0.08 * v.value }] }));
+  return <Animated.View style={[style, a]}>{children}</Animated.View>;
+}
+
+/** On/off switch drawn by the game (the system switch changes size between iOS versions and sat off-centre). */
+export function Toggle({ value, onChange, testID }: { value: boolean; onChange: (v: boolean) => void; testID?: string }) {
+  const colors = usePalette();
+  const styles = useStyles(make_styles);
+  const v = useSharedValue(value ? 1 : 0);
+  useEffect(() => {
+    v.value = withTiming(value ? 1 : 0, { duration: 140 });
+  }, [value, v]);
+  const knob = useAnimatedStyle(() => ({ transform: [{ translateX: v.value * 22 }] }));
+  return (
+    <Pressable onPress={() => { play('tap'); onChange(!value); }} hitSlop={10} accessibilityRole="switch" accessibilityState={{ checked: value }} testID={testID}>
+      <View style={[styles.toggle, { backgroundColor: value ? colors.accent : colors.disabled }]}>
+        <Animated.View style={[styles.toggleKnob, knob]} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -244,7 +285,10 @@ export const make_styles = (colors: Palette) => StyleSheet.create({
   small: { height: sizes.small, borderRadius: radius.lg, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   dot: { position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: colors.wrong, borderWidth: 2, borderColor: colors.white },
   countDot: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: colors.wrong, borderWidth: 2, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.55)', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 60 },
+  dimWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 60 },
+  dimFill: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.55)' },
+  toggle: { width: 52, height: 30, borderRadius: 15, padding: 3, justifyContent: 'center' },
+  toggleKnob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF' },
   sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 18, gap: 12, width: '100%', maxWidth: 400 },
   sheetHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sheetIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },

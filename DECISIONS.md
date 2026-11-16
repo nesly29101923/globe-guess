@@ -127,3 +127,9 @@ Every choice made while building without a reviewer, with one line of reasoning.
   taught (no "+" buttons that leave the round for the shop).
 - **Result**: score, rewards with the XP bar, one line of tags (streak, new cards, missions), Next. The Atlas card
   flips and the mission bars are gone from this screen.
+- **Frame drops when a popup opens (iPhone 16 Pro).** The phone draws at 120 Hz, so a frame has 8 ms, not 16.
+  Three fixes: (1) Reanimated's `IOS/ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS` static flags (package.json), so transform
+  and opacity animations no longer go through a full React-tree commit each frame and stop colliding with the commit
+  that mounts the popup; (2) sheets and `PopIn` no longer fade a whole container (off-screen drawing every frame):
+  they move/scale, and only the flat dim fades; (3) own `Toggle` instead of the system switch, which sat off-centre
+  on the new iOS switch size.

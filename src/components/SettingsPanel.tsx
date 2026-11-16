@@ -1,6 +1,6 @@
 // Sound, music, vibration, reminders and appearance. Used by the Settings screen and the in-game settings sheet.
 import React from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { setMenuMusic } from '../feedback/sfx';
 import { refreshNotifications } from '../game/notify';
 import { t } from '../i18n/strings';
@@ -10,7 +10,7 @@ import { useGame } from '../store/store';
 import { radius, type, type Palette } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { usePalette, useStyles } from '../theme/usePalette';
-import { Press, T } from './ui';
+import { Press, T, Toggle } from './ui';
 
 type Toggle = 'sound' | 'music' | 'haptics' | 'notifications' | 'showFps';
 type Appearance = SaveState['settings']['appearance'];
@@ -42,8 +42,7 @@ export function SettingsPanel({ compact }: { compact?: boolean }) {
         <View key={r.k} style={st.row}>
           <View style={st.iconBox}><Icon name={r.icon} size={20} color={colors.accent} /></View>
           <T size={type.body} weight="bold" style={{ flex: 1 }}>{r.label}</T>
-          <Switch value={settings[r.k]} onValueChange={(v) => set(r.k, v)} trackColor={{ true: colors.accent, false: colors.track }}
-            thumbColor={colors.white} testID={`setting-${r.k}`} />
+          <Toggle value={settings[r.k]} onChange={(v) => set(r.k, v)} testID={`setting-${r.k}`} />
         </View>
       ))}
       <View style={st.row}>

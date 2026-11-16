@@ -61,5 +61,11 @@
     "export:web": "expo export -p web",
     "postinstall": "setup-skia-web public"
   },
-  "private": true
+  "private": true,
+  "reanimated": {
+    "staticFeatureFlags": {
+      "IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS": true,
+      "ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
+  }
 }
