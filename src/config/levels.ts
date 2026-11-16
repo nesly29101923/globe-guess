@@ -31,7 +31,7 @@ export type ChapterDef = {
   /** tier mix per level; the last entry is the boss */
   ramp: string[];
   starsToOpen: number;   // total Journey stars needed to open the chapter (plus the previous boss cleared)
-  icon: string;          // emoji used on the path
+  icon: string;          // icon name (Material Community Icons) for the path and home
 };
 
 const RAMP_EASY = ['ve', 've', 've', 've_e', 've_e', 'e', 'e', 'e_m', 'e_m', 'boss_easy'];
@@ -40,17 +40,17 @@ const RAMP_HARD = ['e_m', 'm', 'm', 'm_h', 'm_h', 'h', 'h', 'h_vh', 'h_vh', 'bos
 const RAMP_EXPERT = ['m_h', 'h', 'h', 'h_vh', 'h_vh', 'vh', 'vh', 'vh', 'vh', 'boss_hard'];
 
 export const CHAPTERS: ChapterDef[] = [
-  { id: 'world_famous', topic: 'world', types: { map: 1 }, ramp: RAMP_EASY, starsToOpen: 0, icon: '🌍' },
-  { id: 'usa_1', topic: 'usa', types: { map: 1 }, ramp: RAMP_EASY, starsToOpen: 14, icon: '🇺🇸' },
-  { id: 'europe', topic: 'europe', types: { map: 1 }, ramp: RAMP_MID, starsToOpen: 30, icon: '🏰' },
-  { id: 'flags_1', topic: 'world', types: { flag: 1 }, ramp: RAMP_EASY, starsToOpen: 46, icon: '🚩' },
-  { id: 'americas', topic: 'americas', types: { map: 0.8, flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 62, icon: '🌎' },
-  { id: 'asia', topic: 'asia', types: { map: 0.8, name_to_flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 78, icon: '🏯' },
-  { id: 'usa_2', topic: 'usa', types: { map: 1 }, ramp: RAMP_HARD, starsToOpen: 94, icon: '🗽' },
-  { id: 'africa', topic: 'africa', types: { map: 0.8, flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 110, icon: '🦁' },
-  { id: 'flags_2', topic: 'world', types: { flag: 0.7, name_to_flag: 0.3 }, ramp: RAMP_HARD, starsToOpen: 126, icon: '🏳️' },
-  { id: 'oceania', topic: 'oceania', types: { map: 0.7, flag: 0.3 }, ramp: RAMP_MID, starsToOpen: 142, icon: '🏝️' },
-  { id: 'expert', topic: 'world', types: { map: 0.6, flag: 0.2, name_to_flag: 0.2 }, ramp: RAMP_EXPERT, starsToOpen: 158, icon: '🧭' },
+  { id: 'world_famous', topic: 'world', types: { map: 1 }, ramp: RAMP_EASY, starsToOpen: 0, icon: 'earth' },
+  { id: 'usa_1', topic: 'usa', types: { map: 1 }, ramp: RAMP_EASY, starsToOpen: 14, icon: 'flag-variant' },
+  { id: 'europe', topic: 'europe', types: { map: 1 }, ramp: RAMP_MID, starsToOpen: 30, icon: 'castle' },
+  { id: 'flags_1', topic: 'world', types: { flag: 1 }, ramp: RAMP_EASY, starsToOpen: 46, icon: 'flag' },
+  { id: 'americas', topic: 'americas', types: { map: 0.8, flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 62, icon: 'earth' },
+  { id: 'asia', topic: 'asia', types: { map: 0.8, name_to_flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 78, icon: 'temple-buddhist' },
+  { id: 'usa_2', topic: 'usa', types: { map: 1 }, ramp: RAMP_HARD, starsToOpen: 94, icon: 'star-circle' },
+  { id: 'africa', topic: 'africa', types: { map: 0.8, flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 110, icon: 'elephant' },
+  { id: 'flags_2', topic: 'world', types: { flag: 0.7, name_to_flag: 0.3 }, ramp: RAMP_HARD, starsToOpen: 126, icon: 'flag-checkered' },
+  { id: 'oceania', topic: 'oceania', types: { map: 0.7, flag: 0.3 }, ramp: RAMP_MID, starsToOpen: 142, icon: 'palm-tree' },
+  { id: 'expert', topic: 'world', types: { map: 0.6, flag: 0.2, name_to_flag: 0.2 }, ramp: RAMP_EXPERT, starsToOpen: 158, icon: 'compass-rose' },
 ];
 
 export type LevelDef = {

@@ -7,7 +7,8 @@ import { t } from '../i18n/strings';
 import type { SaveState } from '../logic/save';
 import { requestPermission } from '../services/notifications';
 import { useGame } from '../store/store';
-import { radius, type Palette } from '../theme';
+import { radius, type, type Palette } from '../theme';
+import { Icon, type IconName } from './Icon';
 import { usePalette, useStyles } from '../theme/usePalette';
 import { Press, T } from './ui';
 
@@ -28,25 +29,25 @@ export function SettingsPanel({ compact }: { compact?: boolean }) {
     }
   };
   const setAppearance = (a: Appearance) => update((s) => ({ ...s, settings: { ...s.settings, appearance: a } }));
-  const rows: { k: Toggle; icon: string; label: string }[] = [
-    { k: 'sound', icon: '🔊', label: t('sound') },
-    { k: 'haptics', icon: '📳', label: t('haptics') },
-    { k: 'music', icon: '🎵', label: t('music') },
-    ...(compact ? [] : [{ k: 'notifications' as Toggle, icon: '🔔', label: t('notifications') }]),
+  const rows: { k: Toggle; icon: IconName; label: string }[] = [
+    { k: 'sound', icon: 'volume-high', label: t('sound') },
+    { k: 'haptics', icon: 'vibrate', label: t('haptics') },
+    { k: 'music', icon: 'music', label: t('music') },
+    ...(compact ? [] : [{ k: 'notifications' as Toggle, icon: 'bell' as IconName, label: t('notifications') }]),
   ];
   return (
     <View>
       {rows.map((r) => (
         <View key={r.k} style={st.row}>
-          <T size={20}>{r.icon}</T>
-          <T size={15} weight="bold" style={{ flex: 1 }}>{r.label}</T>
+          <View style={st.iconBox}><Icon name={r.icon} size={20} color={colors.accent} /></View>
+          <T size={type.body} weight="bold" style={{ flex: 1 }}>{r.label}</T>
           <Switch value={settings[r.k]} onValueChange={(v) => set(r.k, v)} trackColor={{ true: colors.accent, false: colors.track }}
             thumbColor={colors.white} testID={`setting-${r.k}`} />
         </View>
       ))}
       <View style={st.row}>
-        <T size={20}>🌓</T>
-        <T size={15} weight="bold" style={{ flex: 1 }}>{t('appearance')}</T>
+        <View style={st.iconBox}><Icon name="theme-light-dark" size={20} color={colors.accent} /></View>
+        <T size={type.body} weight="bold" style={{ flex: 1 }}>{t('appearance')}</T>
       </View>
       <View style={st.segment}>
         {(['system', 'light', 'dark'] as Appearance[]).map((a) => {
@@ -54,7 +55,7 @@ export function SettingsPanel({ compact }: { compact?: boolean }) {
           return (
             <Press key={a} onPress={() => setAppearance(a)} style={{ flex: 1 }} testID={`appearance-${a}`}>
               <View style={[st.segBtn, on && { backgroundColor: colors.accent }]}>
-                <T size={13} weight="bold" color={on ? colors.white : colors.ink}>{t(`appearance_${a}`)}</T>
+                <T size={type.label} weight="bold" color={on ? colors.white : colors.ink}>{t(`appearance_${a}`)}</T>
               </View>
             </Press>
           );
@@ -67,6 +68,7 @@ export function SettingsPanel({ compact }: { compact?: boolean }) {
 const makeSt = (colors: Palette) =>
   StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+    iconBox: { width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
     segment: { flexDirection: 'row', gap: 6, backgroundColor: colors.chip, borderRadius: radius.md, padding: 4, marginBottom: 8 },
     segBtn: { height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   });

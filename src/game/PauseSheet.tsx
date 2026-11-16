@@ -2,32 +2,30 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SettingsPanel } from '../components/SettingsPanel';
-import { BigButton, PopIn, Press, T } from '../components/ui';
+import { Icon } from '../components/Icon';
+import { BigButton, Press, Sheet, SheetTitle, T } from '../components/ui';
 import { t } from '../i18n/strings';
-import { radius, shadow, type Palette } from '../theme';
+import { type, type Palette } from '../theme';
 import { usePalette, useStyles } from '../theme/usePalette';
 
 export function PauseSheet({ onResume, onQuit }: { onResume: () => void; onQuit?: () => void }) {
   const colors = usePalette();
   const st = useStyles(makeSt);
   return (
-    <View style={st.dim}>
-      <PopIn style={[st.sheet, shadow.card]}>
-        <T size={22} weight="black" center>{t('pause_title')}</T>
-        <SettingsPanel compact />
-        <BigButton label={t('resume')} icon="▶" onPress={onResume} testID="pause-resume" />
-        {onQuit ? (
-          <Press onPress={onQuit} testID="pause-quit">
-            <T size={14} weight="bold" color={colors.inkSoft} center style={{ padding: 10 }}>{t('quit_round')}</T>
-          </Press>
-        ) : null}
-      </PopIn>
-    </View>
+    <Sheet>
+      <SheetTitle title={t('pause_title')} icon={<Icon name="pause" size={26} color={colors.accent} />} />
+      <SettingsPanel compact />
+      <BigButton label={t('resume')} icon="play" onPress={onResume} testID="pause-resume" />
+      {onQuit ? (
+        <Press onPress={onQuit} testID="pause-quit">
+          <View style={st.quit}><Icon name="exit-to-app" size={18} color={colors.inkSoft} /><T size={type.body} weight="bold" color={colors.inkSoft}>{t('quit_round')}</T></View>
+        </Press>
+      ) : null}
+    </Sheet>
   );
 }
 
 const makeSt = (colors: Palette) =>
   StyleSheet.create({
-    dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.55)', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 60 },
-    sheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 18, gap: 10, width: '100%', maxWidth: 400 },
+    quit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 48 },
   });

@@ -5,17 +5,18 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepe
 import { haptic } from '../feedback/haptics';
 import { play, type Sfx } from '../feedback/sfx';
 import { t } from '../i18n/strings';
-import { colors, motion, radius, shadow, type Palette } from '../theme';
+import { motion, radius, shadow, type, type Palette } from '../theme';
 import { fx } from './fx';
+import { RewardIcon, type IconName } from './Icon';
 import { BigButton, PopIn, T } from './ui';
 import { usePalette, useStyles } from '../theme/usePalette';
 
 export type CelebrationSpec = {
   kind: 'level' | 'chest' | 'streak' | 'unlock' | 'region' | 'login';
-  icon: string;
+  icon: IconName | 'coin';
   title: string;
   subtitle?: string;
-  rewards?: { icon: string; label: string }[];
+  rewards?: { icon: IconName | 'coin'; label: string }[];
   button?: string;
   sound?: Sfx;
 };
@@ -43,23 +44,23 @@ export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose:
           <View key={i} style={[st.ray, { transform: [{ rotate: `${i * 30}deg` }] }]} />
         ))}
       </Animated.View>
-      <Animated.View style={iconA}>
-        <T size={96}>{spec.icon}</T>
+      <Animated.View style={[st.iconDisc, shadow.card, iconA]}>
+        <RewardIcon name={spec.icon} size={84} />
       </Animated.View>
       <PopIn delay={150}>
-        <T size={34} weight="black" color={colors.white} center style={st.titleShadow}>{spec.title}</T>
+        <T size={type.display} weight="black" color={colors.white} center style={st.titleShadow}>{spec.title}</T>
       </PopIn>
       {spec.subtitle ? (
         <PopIn delay={250}>
-          <T size={17} weight="bold" color="rgba(255,255,255,0.9)" center>{spec.subtitle}</T>
+          <T size={type.heading} weight="bold" color="rgba(255,255,255,0.9)" center>{spec.subtitle}</T>
         </PopIn>
       ) : null}
       {spec.rewards?.length ? (
         <View style={st.rewards}>
           {spec.rewards.map((r, i) => (
             <PopIn key={i} delay={400 + i * 140} style={[st.reward, shadow.card]}>
-              <T size={26}>{r.icon}</T>
-              <T size={15} weight="black">{r.label}</T>
+              <RewardIcon name={r.icon} size={30} />
+              <T size={type.label} weight="black" center lines={2}>{r.label}</T>
             </PopIn>
           ))}
         </View>
@@ -73,9 +74,10 @@ export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose:
 
 const make_st = (colors: Palette) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(30,16,70,0.86)', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 50 },
+  iconDisc: { width: 140, height: 140, borderRadius: 70, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   rays: { position: 'absolute', width: 700, height: 700, alignItems: 'center', justifyContent: 'center', opacity: 0.18 },
   ray: { position: 'absolute', width: 60, height: 700, backgroundColor: colors.gold, borderRadius: 30 },
   titleShadow: { textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 3 } },
   rewards: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 20, marginTop: 8 },
-  reward: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 86, gap: 2 },
+  reward: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 10, paddingVertical: 10, alignItems: 'center', width: 96, minHeight: 84, gap: 4, justifyContent: 'center' },
 });

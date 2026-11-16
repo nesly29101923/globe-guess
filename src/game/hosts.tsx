@@ -1,12 +1,13 @@
 // Global overlays mounted once at the root: the fake ad, the notification pre-prompt and the privacy consent.
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { Icon } from '../components/Icon';
 import { BigButton, PopIn, Press, T } from '../components/ui';
 import { t } from '../i18n/strings';
 import { onFakeAd, type Placement } from '../services/ads';
 import { requestPermission } from '../services/notifications';
 import { useGame } from '../store/store';
-import { colors, radius, shadow, type Palette } from '../theme';
+import { radius, shadow, type, type Palette } from '../theme';
 import { refreshNotifications } from './notify';
 import { usePalette, useStyles } from '../theme/usePalette';
 
@@ -29,8 +30,8 @@ export function AdHost() {
   if (!req) return null;
   return (
     <View style={[StyleSheet.absoluteFill, st.ad]} testID="fake-ad">
-      <T size={14} weight="bold" color="rgba(255,255,255,0.6)">{`${t('ad_test')} · ${req.kind} · ${req.placement}`}</T>
-      <T size={48} weight="black" color={colors.white}>{left > 0 ? String(left) : '✓'}</T>
+      <T size={type.body} weight="bold" color="rgba(255,255,255,0.6)">{`${t('ad_test')} · ${req.kind} · ${req.placement}`}</T>
+      {left > 0 ? <T size={48} weight="black" color={colors.white}>{String(left)}</T> : <Icon name="check-bold" size={48} color={colors.white} />}
       {left <= 0 ? (
         <PopIn>
           <BigButton label={req.kind === 'rewarded' ? t('ad_reward_ready') : t('close')} onPress={() => {
@@ -67,9 +68,9 @@ export function PromptHost() {
     return (
       <View style={st.dim}>
         <PopIn style={[st.sheet, shadow.card]}>
-          <T size={44} center>🔔</T>
-          <T size={20} weight="black" center>{t('notif_ask_title')}</T>
-          <T size={14} weight="semi" color={colors.inkSoft} center>{t('notif_ask_body')}</T>
+          <View style={{ alignItems: 'center' }}><Icon name="bell-ring" size={44} color={colors.accent} /></View>
+          <T size={type.title} weight="black" center>{t('notif_ask_title')}</T>
+          <T size={type.body} weight="semi" color={colors.inkSoft} center>{t('notif_ask_body')}</T>
           <BigButton label={t('notif_yes')} onPress={async () => {
             close();
             useGame.getState().update((s) => ({ ...s, prompts: { ...s.prompts, notifications: 'asked' } }));
@@ -77,7 +78,7 @@ export function PromptHost() {
             refreshNotifications();
           }} testID="notif-yes" />
           <Press onPress={() => { close(); useGame.getState().update((s) => ({ ...s, prompts: { ...s.prompts, notifications: 'asked' } })); }} testID="notif-no">
-            <T size={14} weight="bold" color={colors.inkSoft} center style={{ padding: 8 }}>{t('notif_no')}</T>
+            <T size={type.body} weight="bold" color={colors.inkSoft} center style={{ padding: 8 }}>{t('notif_no')}</T>
           </Press>
         </PopIn>
       </View>
@@ -86,11 +87,11 @@ export function PromptHost() {
   return (
     <View style={st.dim}>
       <PopIn style={[st.sheet, shadow.card]}>
-        <T size={20} weight="black" center>{t('consent_title')}</T>
-        <T size={14} weight="semi" color={colors.inkSoft} center>{t('consent_body')}</T>
+        <T size={type.title} weight="black" center>{t('consent_title')}</T>
+        <T size={type.body} weight="semi" color={colors.inkSoft} center>{t('consent_body')}</T>
         <BigButton label={t('consent_accept')} onPress={() => { close(); setConsent(true); }} testID="consent-yes" />
         <Press onPress={() => { close(); setConsent(false); }} testID="consent-no">
-          <T size={14} weight="bold" color={colors.ink} center style={{ padding: 8 }}>{t('consent_decline')}</T>
+          <T size={type.body} weight="bold" color={colors.ink} center style={{ padding: 8 }}>{t('consent_decline')}</T>
         </Press>
       </PopIn>
     </View>
