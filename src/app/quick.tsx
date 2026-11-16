@@ -1,66 +1,74 @@
-// Quick Play: pick a topic and a difficulty, like the video formats.
+// Quick Play: pick a topic and a difficulty, like the video formats. One screen, no scrolling.
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QUICK_TOPICS } from '../config/levels';
-import { IconButton } from '../components/hud';
+import { ScreenHeader } from '../components/hud';
+import { Icon, type IconName } from '../components/Icon';
 import { BigButton, PopIn, Press, T } from '../components/ui';
 import { fmt, t, upper } from '../i18n/strings';
 import { useGame } from '../store/store';
-import { colors, layout, radius, shadow, tierColors, type Palette } from '../theme';
+import { layout, radius, shadow, sizes, tierColors, type, type Palette } from '../theme';
 import { usePalette, useStyles } from '../theme/usePalette';
 
 const TIERS = ['very_easy', 'easy', 'medium', 'hard', 'very_hard', 'mixed'];
-const ICONS: Record<string, string> = {
-  world_map: '🌍', usa_map: '🇺🇸', world_flags: '🚩', europe_map: '🏰', asia_map: '🏯', africa_map: '🦁', americas_map: '🌎',
-  oceania_map: '🏝️', europe_flags: '🇪🇺', pick_flag: '🏳️',
+const ICONS: Record<string, IconName> = {
+  world_map: 'earth', usa_map: 'flag-variant', world_flags: 'flag', europe_map: 'castle', asia_map: 'temple-buddhist', africa_map: 'elephant',
+  americas_map: 'earth', oceania_map: 'palm-tree', europe_flags: 'flag-outline', pick_flag: 'flag-checkered',
 };
 
 export default function QuickScreen() {
   const colors = usePalette();
   const st = useStyles(make_st);
-  const { width: SW } = useWindowDimensions();
+  const { width: SW, height: SH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
   const best = useGame((g) => g.save.best);
   const [topic, setTopic] = useState('world_map');
   const [tier, setTier] = useState('mixed');
+  // the topic grid takes the height that is left, so the screen fits any phone
+  const fixed = insets.top + 8 + sizes.hud + 10 + 22 + 22 + 2 * 44 + 8 + 14 * 3 + sizes.big + insets.bottom + 24;
+  const tileH = Math.max(46, Math.min(64, (SH - fixed) / 5 - 8));
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
       <View style={[st.top, { paddingTop: insets.top + 8, width: W }]}>
-        <IconButton icon="←" onPress={() => router.back()} testID="quick-back" />
-        <T size={22} weight="black">{t('quick_title')}</T>
-        <View style={{ width: 52 }} />
+        <ScreenHeader title={t('quick_title')} onBack={() => router.back()} testID="quick-back" />
       </View>
-      <ScrollView contentContainerStyle={{ width: W, padding: 12, gap: 12, paddingBottom: 120 + insets.bottom, alignSelf: 'center' }}>
-        <T size={13} weight="black" color={colors.inkSoft}>{upper(t('pick_topic'))}</T>
+      <View style={{ width: W, paddingHorizontal: 12, gap: 8 }}>
+        <T size={type.label} weight="black" color={colors.inkSoft}>{upper(t('pick_topic'))}</T>
         <View style={st.grid}>
-          {QUICK_TOPICS.map((q, i) => (
-            <PopIn key={q.id} delay={i * 30} style={st.cell}>
-              <Press onPress={() => setTopic(q.id)} testID={`quick-${q.id}`}>
-                <View style={[st.topic, shadow.soft, topic === q.id && st.sel]}>
-                  <T size={26}>{ICONS[q.id]}</T>
-                  <T size={13} weight="black" center>{t(`qt_${q.id}` as never)}</T>
-                  {best[`quick:${q.id}:${tier}`] ? <T size={10} weight="bold" color={colors.inkSoft}>{`${t('best')} ${fmt(best[`quick:${q.id}:${tier}`])}`}</T> : null}
-                </View>
-              </Press>
-            </PopIn>
-          ))}
+          {QUICK_TOPICS.map((q, i) => {
+            const sel = topic === q.id;
+            const b = best[`quick:${q.id}:${tier}`];
+            return (
+              <PopIn key={q.id} delay={i * 20} style={st.cell}>
+                <Press onPress={() => setTopic(q.id)} testID={`quick-${q.id}`} scaleTo={0.96}>
+                  <View style={[st.topic, shadow.soft, { height: tileH }, sel && st.sel]}>
+                    <View style={[st.topicIcon, sel && { backgroundColor: colors.accent }]}><Icon name={ICONS[q.id] ?? 'earth'} size={20} color={sel ? colors.white : colors.accent} /></View>
+                    <View style={{ flex: 1 }}>
+                      <T size={type.label} weight="black" lines={2}>{t(`qt_${q.id}` as never)}</T>
+                      {b ? <T size={type.caption} weight="bold" color={colors.inkSoft}>{`${t('best')} ${fmt(b)}`}</T> : null}
+                    </View>
+                  </View>
+                </Press>
+              </PopIn>
+            );
+          })}
         </View>
-        <T size={13} weight="black" color={colors.inkSoft}>{upper(t('pick_tier'))}</T>
+        <T size={type.label} weight="black" color={colors.inkSoft} style={{ marginTop: 6 }}>{upper(t('pick_tier'))}</T>
         <View style={st.tiers}>
           {TIERS.map((x) => (
-            <Press key={x} onPress={() => setTier(x)} testID={`tier-${x}`}>
-              <View style={[st.tier, { backgroundColor: tier === x ? tierColors[x] : colors.white }, shadow.soft]}>
-                <T size={12} weight="black" color={tier === x ? colors.white : colors.ink}>{t(`tier_${x}` as never)}</T>
+            <Press key={x} onPress={() => setTier(x)} testID={`tier-${x}`} style={st.tierCell}>
+              <View style={[st.tier, { backgroundColor: tier === x ? tierColors[x] : colors.surface }, shadow.soft]}>
+                <T size={type.label} weight="black" color={tier === x ? colors.white : colors.ink} lines={1} shrink>{t(`tier_${x}` as never)}</T>
               </View>
             </Press>
           ))}
         </View>
-      </ScrollView>
+      </View>
       <View style={[st.bottom, { paddingBottom: insets.bottom + 12, width: W }]}>
-        <BigButton label={t('start')} icon="▶" breathe onPress={() => router.replace({ pathname: '/play', params: { mode: 'quick', quick: topic, tier, nonce: String(Date.now()) } })} testID="quick-start" />
+        <BigButton label={t('start')} icon="play" breathe onPress={() => router.replace({ pathname: '/play', params: { mode: 'quick', quick: topic, tier, nonce: String(Date.now()) } })} testID="quick-start" />
       </View>
     </View>
   );
@@ -68,12 +76,14 @@ export default function QuickScreen() {
 
 const make_st = (colors: Palette) => StyleSheet.create({
   bg: { backgroundColor: colors.bg, alignItems: 'center' },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  top: { paddingHorizontal: 12, paddingBottom: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: { width: '48%', flexGrow: 1 },
-  topic: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 2, minHeight: 96, justifyContent: 'center', borderWidth: 3, borderColor: 'transparent' },
+  topic: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2.5, borderColor: 'transparent' },
+  topicIcon: { width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   sel: { borderColor: colors.accent },
   tiers: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tier: { borderRadius: 99, paddingHorizontal: 14, height: 44, justifyContent: 'center' },
+  tierCell: { width: '31%', flexGrow: 1 },
+  tier: { borderRadius: radius.pill, paddingHorizontal: 10, height: 44, justifyContent: 'center', alignItems: 'center' },
   bottom: { position: 'absolute', bottom: 0, paddingHorizontal: 16 },
 });
