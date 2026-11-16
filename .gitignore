@@ -6,3 +6,5 @@ android/
 *.log
 .DS_Store
 public/canvaskit.wasm
+.tools/
+crash-log.txt
