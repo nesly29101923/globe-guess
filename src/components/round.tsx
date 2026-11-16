@@ -19,8 +19,8 @@ import { usePalette, useStyles } from '../theme/usePalette';
 
 // ---------------------------------------------------------------- title card
 
-export function TitleCard({ title, chips, tier, style }: { title: string; chips: string[]; tier?: string; style?: StyleProp<ViewStyle> }) {
-  const colors = usePalette();
+/** The question, on one line. Topic and difficulty are not repeated here: the difficulty sits next to "3/10". */
+export function TitleCard({ title, style }: { title: string; style?: StyleProp<ViewStyle> }) {
   const st = useStyles(make_st);
   const v = useSharedValue(0);
   useEffect(() => {
@@ -28,29 +28,17 @@ export function TitleCard({ title, chips, tier, style }: { title: string; chips:
     v.value = withSpring(1, motion.springSoft);
   }, [title, v]);
   const a = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * -24 }] }));
-  const f = fitSize(title, type.title + 2, 300, 16, 0.66);
+  const f = fitSize(title, type.title, 280, 15, 0.66);
   return (
     <Animated.View style={[st.title, shadow.card, style, a]}>
       <T size={f.size} weight="black" center lines={1} shrink>{title}</T>
-      <View style={st.chips}>
-        {chips.map((c) => (
-          <View key={c} style={[st.chip, { backgroundColor: colors.chip }]}>
-            <T size={type.caption} weight="bold">{c}</T>
-          </View>
-        ))}
-        {tier ? (
-          <View style={[st.chip, { backgroundColor: tierColors[tier] ?? colors.accent }]}>
-            <T size={type.caption} weight="bold" color={colors.white}>{upper(t(`tier_${tier}` as never))}</T>
-          </View>
-        ) : null}
-      </View>
     </Animated.View>
   );
 }
 
 // ---------------------------------------------------------------- progress dots
 
-export function ProgressDots({ total, index, results }: { total: number; index: number; results: (boolean | null)[] }) {
+export function ProgressDots({ total, index, results, tier }: { total: number; index: number; results: (boolean | null)[]; tier?: string }) {
   const colors = usePalette();
   const st = useStyles(make_st);
   return (
@@ -62,7 +50,10 @@ export function ProgressDots({ total, index, results }: { total: number; index: 
           return <Dot key={i} bg={bg} current={i === index} edge={r == null && i !== index} />;
         })}
       </View>
-      <T size={type.caption} weight="bold" color={colors.inkSoft}>{`${Math.min(index + 1, total)}/${total}`}</T>
+      <View style={st.dotsCaption}>
+        <T size={type.caption} weight="black" color={colors.inkSoft}>{`${Math.min(index + 1, total)}/${total}`}</T>
+        {tier ? <T size={type.caption} weight="black" color={tierColors[tier] ?? colors.accent}>{upper(t(`tier_${tier}` as never))}</T> : null}
+      </View>
     </View>
   );
 }
@@ -102,7 +93,7 @@ export function TimerRing({ progress, seconds, size = 76, frozen }: { progress: 
   const a = useAnimatedStyle(() => ({ transform: [{ scale: bump.value }] }));
   const urgent = secondsLeft <= 3 && !frozen;
   return (
-    <View style={[{ width: size, height: size }, shadow.card, st.timerDisc]}>
+    <View style={[{ width: size, height: size }, st.timerDisc]}>
       <Canvas style={{ width: size, height: size }}>
         <Circle cx={size / 2} cy={size / 2} r={r} color={colors.track} style="stroke" strokeWidth={stroke} />
         <Path path={path} color={frozen ? '#38BDF8' : color} style="stroke" strokeWidth={stroke} strokeCap="round" end={progress} />
@@ -307,9 +298,8 @@ export function PowerupButton({ icon, label, count, onPress, disabled, highlight
 }
 
 const make_st = (colors: Palette) => StyleSheet.create({
-  title: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center', gap: 6 },
-  chips: { flexDirection: 'row', gap: 6 },
-  chip: { paddingHorizontal: 10, height: 22, borderRadius: radius.pill, justifyContent: 'center' },
+  title: { backgroundColor: colors.surface, borderRadius: radius.lg, height: 52, paddingHorizontal: 52, alignItems: 'center', justifyContent: 'center' },
+  dotsCaption: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 10, height: 20 },
   dotsWrap: { alignItems: 'center', gap: 3 },
   dots: { flexDirection: 'row', gap: 7, alignItems: 'center' },
   dot: { width: 11, height: 11, borderRadius: 6 },

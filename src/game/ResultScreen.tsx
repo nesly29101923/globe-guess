@@ -44,6 +44,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
   const save = useGame((g) => g.save);
+  const missionsOn = save.level >= balance.unlocks.missions;
   const S = summary;
   const [beat, setBeat] = useState(0);
   const [coinsShown, setCoinsShown] = useState(coinsBefore);
@@ -102,9 +103,8 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
     });
     later((at += B * 2), () => { setBeat(6); setXpShown({ level: save.level, xp: save.xp }); setCoinsShown(save.coins); });
     if (specs.length) later((at += B * 1.2), () => showCelebrations(specs));
-    later((at += B), () => setBeat(7));                          // cards
-    later((at += B + Math.min(6, S.cards.length) * 110), () => setBeat(8)); // missions + streak
-    later((at += B), () => setBeat(9));                          // goal + buttons
+    later((at += B * 0.6), () => setBeat(7));                    // summary line
+    later((at += B * 0.8), () => setBeat(9));                    // goal + buttons
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -175,19 +175,18 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
     if (beat === 9 && doubleOk) ads.offerShown('double_coins');
   }, [beat, doubleOk]);
 
-  // ---- layout: everything fits on one screen. The density follows the height that is really free:
-  // full (all cards), compact (smaller score, missions on one line), tiny (cards and streak folded into the rewards card)
-  const avail = SH - insets.top - insets.bottom;
-  const compact = avail < 800;
-  const tiny = avail < 700;
+  // ---- layout: score, rewards, one summary line, the next round. Short phones get a smaller score.
+  const compact = SH - insets.top - insets.bottom < 720;
   const cards = [...newCards, ...masteryUps];
-  const maxCards = Math.max(3, Math.floor((W - 24 - 28) / 66));
-  const shownCards = cards.length > maxCards ? cards.slice(0, maxCards - 1) : cards;
-  const moreCards = cards.length - shownCards.length;
+  const missionsDone = S.missions.filter((m) => m.done).length;
+  const streakText = S.streak.kind === 'started' ? t('streak_started') : S.streak.kind === 'froze' ? t('streak_froze') : t('streak_day', { n: S.streak.count });
+  useEffect(() => {
+    if (beat === 7 && (S.streak.kind === 'started' || S.streak.kind === 'extended' || S.streak.kind === 'froze')) play('flame');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beat]);
 
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
-      <View style={[st.rays]} pointerEvents="none" />
       <View style={[st.top, { paddingTop: insets.top + 8, width: W, alignSelf: 'center' }]} pointerEvents="box-none">
         <LevelBadge level={xpShown.level} xp={xpShown.xp} need={need} />
         <CoinPill value={coinsShown} bumpKey={bump} />
@@ -199,10 +198,10 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
           <View style={st.ribbon}><T size={type.caption} weight="black" color={colors.white}>{t('result_title')}</T></View>
           <PopIn><T size={compact ? type.title + 4 : type.display} weight="black" center lines={1} shrink>{headline}</T></PopIn>
           <View style={st.scoreRow}>
-            <T size={tiny ? type.hero - 14 : compact ? type.hero - 8 : type.hero} weight="black" color={colors.accent}>{beat >= 1 ? `${S.correct}` : '?'}</T>
+            <T size={compact ? type.hero - 8 : type.hero} weight="black" color={colors.accent}>{beat >= 1 ? `${S.correct}` : '?'}</T>
             <T size={compact ? type.title + 4 : type.display} weight="black" color={colors.ink}>{`/${S.total}`}</T>
           </View>
-          {isJourney ? <Stars n={S.stars} beat={beat} size={tiny ? 34 : compact ? 38 : 46} /> : null}
+          {isJourney ? <Stars n={S.stars} beat={beat} size={compact ? 38 : 48} /> : null}
           {grid ? <GridSquares results={grid} /> : null}
           <View style={st.scoreLine}>
             <T size={type.label} weight="bold" color={colors.inkSoft}>{t('score')}</T>
@@ -214,66 +213,23 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
           </View>
         </View>
 
-        {/* rewards: coins, XP and the bar to the next level */}
+        {/* rewards: coins, XP, the bar to the next level, and one line for everything else */}
         <View style={[st.card, shadow.soft, beat < 5 && st.hidden]}>
-          {beat >= 5 ? (
-            <PopIn style={{ gap: 8 }}>
-              <View style={st.rewardRow}>
-                <View style={st.reward}><Coin size={24} /><T size={type.title} weight="black">{`+${fmt(S.coinsTotal + (doubled ? S.coinsTotal : 0))}`}</T></View>
-                <View style={st.reward}><Icon name="star-four-points" size={22} color={colors.accent} /><T size={type.title} weight="black">{`+${fmt(S.xpTotal)} XP`}</T></View>
-                {S.heartLost ? <View style={st.reward}><Icon name="heart-broken" size={20} color={colors.wrong} /><T size={type.label} weight="bold" color={colors.wrong}>{t('heart_lost')}</T></View> : null}
-                {tiny && cards.length ? <View style={st.reward}><Icon name="book-open-variant" size={20} color={colors.accent} /><T size={type.title} weight="black">{`+${cards.length}`}</T></View> : null}
-              </View>
-              <View style={{ gap: 4, opacity: beat >= 6 ? 1 : 0 }}>
-                <T size={type.caption} weight="bold" color={colors.inkSoft}>{t('goal_level', { n: xpShown.level + 1, xp: Math.max(0, need - xpShown.xp) })}</T>
-                <ProgressBar value={need ? xpShown.xp / need : 1} height={8} />
-              </View>
-              {tiny ? <View style={{ opacity: beat >= 8 ? 1 : 0 }}><StreakLine summary={S} /></View> : null}
-            </PopIn>
-          ) : <View style={{ height: 64 }} />}
-        </View>
-
-        {/* new Atlas cards: one row, never hidden under the buttons */}
-        {cards.length && !tiny ? (
-          <View style={[st.card, shadow.soft, { paddingVertical: 10 }, beat < 7 && st.hidden]}>
-            {beat >= 7 ? (
-              <PopIn style={{ gap: 6 }}>
-                <View style={st.rowBetween}>
-                  <View style={st.inline}><Icon name="book-open-variant" size={16} color={colors.accent} /><T size={type.label} weight="black">{t('new_cards')}</T></View>
-                  <T size={type.label} weight="black" color={colors.accent}>{`+${cards.length}`}</T>
-                </View>
-                <View style={st.cards}>
-                  {shownCards.map((c, i) => <AtlasCardFlip key={c.key} id={c.id} kind={c.kind} delay={i * 110} mastery={c.masteryUp} />)}
-                  {moreCards > 0 ? <View style={[st.atlasCard, st.moreCard]}><T size={type.heading} weight="black" color={colors.accent}>{`+${moreCards}`}</T></View> : null}
-                </View>
-              </PopIn>
-            ) : <View style={{ height: 92 }} />}
+          <View style={st.rewardRow}>
+            <View style={st.reward}><Coin size={24} /><T size={type.title} weight="black">{`+${fmt(S.coinsTotal + (doubled ? S.coinsTotal : 0))}`}</T></View>
+            <View style={st.reward}><Icon name="star-four-points" size={22} color={colors.accent} /><T size={type.title} weight="black">{`+${fmt(S.xpTotal)} XP`}</T></View>
           </View>
-        ) : null}
-
-        {/* streak and missions */}
-        {!tiny ? <View style={[st.card, shadow.soft, { gap: 6, paddingVertical: 10 }, beat < 8 && st.hidden]}>
-          {beat >= 8 ? (
-            <PopIn style={{ gap: 6 }}>
-              <StreakLine summary={S} />
-              {compact ? (
-                S.missions.length ? (
-                  <View style={st.inline}>
-                    <Icon name="clipboard-check" size={16} color={colors.correct} />
-                    <T size={type.label} weight="bold">{`${t('missions')} · ${S.missions.filter((m) => m.done).length}/${S.missions.length}`}</T>
-                  </View>
-                ) : null
-              ) : S.missions.map((m) => (
-                <View key={m.id} style={st.missionRow}>
-                  <Icon name={m.done ? 'check-circle' : 'clipboard-check-outline'} size={18} color={m.done ? colors.correct : colors.inkSoft} />
-                  <T size={type.label} weight="bold" style={{ flex: 1 }} lines={1}>{t(`mission_${m.id}` as never, { n: m.target })}</T>
-                  <View style={{ width: 60 }}><ProgressBar value={m.to / m.target} color={m.done ? colors.correct : colors.gold} height={6} /></View>
-                  <T size={type.caption} weight="black" color={m.done ? colors.correct : colors.inkSoft} style={{ width: 34, textAlign: 'right' }}>{`${Math.min(m.to, m.target)}/${m.target}`}</T>
-                </View>
-              ))}
-            </PopIn>
-          ) : <View style={{ height: 22 }} />}
-        </View> : null}
+          <View style={{ gap: 4, opacity: beat >= 6 ? 1 : 0 }}>
+            <T size={type.caption} weight="bold" color={colors.inkSoft}>{t('goal_level', { n: xpShown.level + 1, xp: Math.max(0, need - xpShown.xp) })}</T>
+            <ProgressBar value={need ? xpShown.xp / need : 1} height={8} />
+          </View>
+          <View style={[st.summary, { opacity: beat >= 7 ? 1 : 0 }]}>
+            <View style={st.tag}><Icon name="fire" size={15} color={colors.flame} /><T size={type.caption} weight="black" lines={1}>{streakText}</T></View>
+            {cards.length ? <View style={st.tag}><Icon name="book-open-variant" size={15} color={colors.accent} /><T size={type.caption} weight="black">{t('summary_cards', { n: cards.length })}</T></View> : null}
+            {missionsOn && S.missions.length ? <View style={st.tag}><Icon name="clipboard-check" size={15} color={colors.correct} /><T size={type.caption} weight="black">{`${t('missions')} ${missionsDone}/${S.missions.length}`}</T></View> : null}
+            {S.heartLost ? <View style={st.tag}><Icon name="heart-broken" size={15} color={colors.wrong} /><T size={type.caption} weight="black" color={colors.wrong}>{t('heart_lost')}</T></View> : null}
+          </View>
+        </View>
       </Pressable>
 
       {/* the next round: the biggest button, sliding up when the rewards are done */}
@@ -340,53 +296,10 @@ function Star({ on, big, size }: { on: boolean; big: boolean; size: number }) {
   );
 }
 
-function AtlasCardFlip({ id, kind, delay, mastery }: { id: string; kind: string; delay: number; mastery: number | null }) {
-  const colors = usePalette();
-  const st = useStyles(make_st);
-  const r = useSharedValue(0);
-  useEffect(() => {
-    r.value = withDelay(delay, withTiming(1, { duration: 360 }));
-    const h = setTimeout(() => play('card'), delay + 120);
-    return () => clearTimeout(h);
-  }, [delay, r]);
-  const a = useAnimatedStyle(() => ({ transform: [{ perspective: 400 }, { rotateY: `${(1 - r.value) * 180}deg` }, { scale: 0.8 + 0.2 * r.value }] }));
-  const flag = kind !== 'state' ? FLAG_IMAGES[id] : undefined;
-  return (
-    <Animated.View style={[st.atlasCard, mastery ? { borderColor: mastery === 3 ? colors.gold : mastery === 2 ? '#94A3B8' : '#B45309' } : null, a]}>
-      {flag ? <Image source={flag} style={st.atlasFlag} contentFit="cover" /> : <Icon name="map-marker" size={22} color={colors.accent} />}
-      <T size={9} weight="bold" center lines={1}>{itemName(id)}</T>
-      {mastery ? <Icon name="medal" size={12} color={mastery === 3 ? colors.gold : mastery === 2 ? '#94A3B8' : '#B45309'} /> : <T size={9} weight="black" color={colors.correct}>{t('new_tag')}</T>}
-    </Animated.View>
-  );
-}
-
-function StreakLine({ summary }: { summary: RoundSummary }) {
-  const colors = usePalette();
-  const st = useStyles(make_st);
-  const e = summary.streak;
-  let text = '';
-  if (e.kind === 'started') text = t('streak_started');
-  else if (e.kind === 'froze') text = t('streak_froze');
-  else text = t('streak_day', { n: e.count });
-  useEffect(() => {
-    if (e.kind === 'started' || e.kind === 'extended' || e.kind === 'froze') play('flame');
-  }, [e.kind]);
-  return (
-    <View style={st.rowBetween}>
-      <View style={st.inline}>
-        <Icon name={e.kind === 'froze' ? 'snowflake' : 'fire'} size={18} color={e.kind === 'froze' ? '#0EA5E9' : colors.flame} />
-        <T size={type.body} weight="black" color={colors.flame} lines={1}>{text}</T>
-      </View>
-      {e.kind !== 'same_day' ? <T size={type.caption} weight="bold" color={colors.inkSoft}>{t('streak_tomorrow')}</T> : null}
-    </View>
-  );
-}
-
 const make_st = (colors: Palette) => StyleSheet.create({
   bg: { backgroundColor: colors.bg, alignItems: 'center' },
-  rays: { position: 'absolute', top: -200, width: 640, height: 640, borderRadius: 320, backgroundColor: colors.surface, opacity: 0.35 },
   top: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 3 },
-  middle: { flex: 1, paddingHorizontal: 12, paddingTop: 14, gap: 10, justifyContent: 'center' },
+  middle: { flex: 1, paddingHorizontal: 12, paddingTop: 14, gap: 12, justifyContent: 'center' },
   scoreCard: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 16, paddingTop: 22, paddingBottom: 14, alignItems: 'center', gap: 2, marginTop: 10 },
   ribbon: { position: 'absolute', top: -12, backgroundColor: colors.accent, borderRadius: radius.pill, paddingHorizontal: 14, height: 24, justifyContent: 'center' },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline' },
@@ -394,7 +307,9 @@ const make_st = (colors: Palette) => StyleSheet.create({
   best: { backgroundColor: colors.flame, borderRadius: 99, paddingHorizontal: 8, height: 20, justifyContent: 'center' },
   comboTag: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   stars: { flexDirection: 'row', gap: 4, alignItems: 'flex-end' },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 12 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 14, gap: 10 },
+  summary: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.chip, borderRadius: radius.pill, paddingHorizontal: 10, height: 26 },
   hidden: { opacity: 0 },
   rewardRow: { flexDirection: 'row', gap: 18, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
   reward: { flexDirection: 'row', alignItems: 'center', gap: 6 },

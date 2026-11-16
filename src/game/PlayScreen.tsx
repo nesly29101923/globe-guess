@@ -55,14 +55,20 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
 
   // ---- layout (portrait, answers in thumb reach)
   const top = insets.top + 8;
-  const titleH = 78;
+  const titleH = 52;
   const dotsY = top + titleH + 8;
-  const showPowerups = initialQuiz.mode !== 'first';
+  // power-ups are on screen only once the player has one (or is about to be given one): no empty buttons
+  const [showPowerups] = useState(() => {
+    if (initialQuiz.mode === 'first') return false;
+    const s0 = useGame.getState().save;
+    const owned = s0.powerups.fiftyFifty + s0.powerups.freeze + s0.powerups.skip > 0;
+    return owned || s0.level >= Math.min(balance.powerupTeachAtLevel.fiftyFifty, balance.powerupTeachAtLevel.freeze, balance.powerupTeachAtLevel.skip);
+  });
   const bottomPad = Math.max(insets.bottom, 12);
   const puH = showPowerups ? sizes.big + 14 : 0;
   const gridH = 58 * 2 + 10;
   const gridTop = SH - bottomPad - puH - gridH - 8;
-  const mapTop = dotsY + 34;
+  const mapTop = dotsY + 40;
   const mapBottom = gridTop - 10;
   const box: Box = useMemo(() => ({ fx: SW / 2, fy: (mapTop + mapBottom) / 2, fw: W * 0.86, fh: (mapBottom - mapTop) * 0.92, W: SW }), [SW, W, mapTop, mapBottom]);
 
@@ -435,10 +441,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     const s = useGame.getState().save;
     const free = teach === id;
     if (id === 'fiftyFifty' && usedFifty) return;
-    if (!free && s.powerups[id] <= 0) {
-      router.push('/shop');
-      return;
-    }
+    if (!free && s.powerups[id] <= 0) return;
     powerupsUsed.current += 1;
     update((st) => {
       const after = free ? st : spendPowerup(st, id) ?? st;
@@ -500,7 +503,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   // ---- render
   const results = quiz.mode === 'survival' ? [] : quiz.questions.map((_, i) => (answers[i] ? answers[i].correct : null));
   const title = scene === 'usa' ? t('q_state') : isFlagQ ? t('q_flag') : isPickFlag ? t('q_pick_flag') : t('q_country');
-  const chips = [upper(t(`topic_${scene === 'usa' ? 'usa' : quiz.topicLabel}` as never))];
   const tierChip = quiz.mode === 'daily' ? 'mixed' : quiz.mode === 'survival' ? q?.tier : quiz.tierLabel === 'boss' ? undefined : quiz.tierLabel;
   const offerSecond = phase === 'offer' && quiz.mode !== 'survival';
   const offerContinue = phase === 'offer' && quiz.mode === 'survival' && lives <= 0;
@@ -513,7 +515,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
 
       {/* header */}
       <View style={[st.col, { top, width: W, left: (SW - W) / 2 }]} pointerEvents="box-none">
-        <TitleCard title={title} chips={quiz.tierLabel === 'boss' ? [...chips, t('tier_boss')] : chips} tier={tierChip} />
+        <TitleCard title={title} />
         <View style={{ height: 8 }} />
         {quiz.mode === 'survival' ? (
           <View style={st.lives}>
@@ -523,10 +525,10 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
             <View style={[st.survivalCount, shadow.soft]}><Icon name="check-bold" size={16} color={colors.correct} /><T size={type.label} weight="black">{String(answers.filter((a) => a.correct).length)}</T></View>
           </View>
         ) : (
-          <ProgressDots total={quiz.questions.length} index={idx} results={results} />
+          <ProgressDots total={quiz.questions.length} index={idx} results={results} tier={quiz.tierLabel === 'boss' ? 'boss' : tierChip} />
         )}
       </View>
-      <Press onPress={pause} style={[st.close, { top: top - 2, right: (SW - W) / 2 + 2 }]} testID="pause" hitSlop={10}>
+      <Press onPress={pause} style={[st.close, { top: top + 8, right: (SW - W) / 2 + 20 }]} testID="pause" hitSlop={10}>
         <View style={[st.closeInner, shadow.soft]}><Icon name="pause" size={20} color={colors.inkSoft} /></View>
       </Press>
 
@@ -583,6 +585,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
           {(['fiftyFifty', 'freeze', 'skip'] as PowerupId[]).map((id) => {
             const notHere = id === 'skip' && (quiz.mode === 'daily' || quiz.mode === 'survival');
             if (notHere) return null;
+            if (powerups[id] <= 0 && teach !== id) return null;
             return (
               <PowerupButton key={id} icon={ICONS[id]} label={t(`pu_${id}` as never)}
                 count={powerups[id]} free={teach === id} highlight={teach === id}
