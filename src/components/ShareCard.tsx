@@ -4,10 +4,12 @@ import { StyleSheet, View } from 'react-native';
 import { APP } from '../config/app';
 import { t } from '../i18n/strings';
 import { colors, radius } from '../theme';
+import { Icon } from './Icon';
+import { GridSquares } from './round';
 import { T } from './ui';
 
-export const ShareCard = forwardRef<React.ComponentRef<typeof View>, { correct: number; total: number; title: string; stars: number; grid?: string; subtitle: string }>(
-  function ShareCard({ correct, total, title, stars, grid, subtitle }, ref) {
+export const ShareCard = forwardRef<React.ComponentRef<typeof View>, { correct: number; total: number; title: string; stars: number; results?: boolean[]; subtitle: string }>(
+  function ShareCard({ correct, total, title, stars, results, subtitle }, ref) {
     return (
       <View ref={ref} collapsable={false} style={st.card}>
         <View style={st.sea} />
@@ -18,8 +20,8 @@ export const ShareCard = forwardRef<React.ComponentRef<typeof View>, { correct: 
         <View style={st.score}>
           <T size={20} weight="black" center>{t('result_title')}</T>
           <T size={72} weight="black" center color={colors.accent}>{`${correct}/${total}`}</T>
-          {stars > 0 ? <T size={36} center>{'★'.repeat(stars) + '☆'.repeat(3 - stars)}</T> : null}
-          {grid ? <T size={20} center>{grid}</T> : null}
+          {stars > 0 ? <View style={{ flexDirection: 'row' }}>{[1, 2, 3].map((i) => <Icon key={i} name="star" size={36} color={i <= stars ? colors.gold : colors.track} />)}</View> : null}
+          {results ? <GridSquares results={results} size={16} /> : null}
           <T size={15} weight="semi" color={colors.inkSoft} center>{t('share_card_line')}</T>
         </View>
         <View style={st.brand}>

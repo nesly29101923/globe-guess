@@ -82,27 +82,27 @@ export default function PlayRoute() {
   let primary: NextAction;
   let secondary: NextAction | undefined = { label: t('home'), go: () => leave(home) };
   if (quiz.mode === 'first') {
-    primary = { label: t('continue'), icon: '▶', go: () => playAgain({ mode: 'journey', level: 'world_famous-2' }) };
+    primary = { label: t('continue'), icon: 'play', go: () => playAgain({ mode: 'journey', level: 'world_famous-2' }) };
     secondary = undefined;
   } else if (quiz.mode === 'journey') {
     const nxt = !S.failed && quiz.levelId ? nextLevelAfter(s, quiz.levelId) : null;
     if (!s.ftue.homeSeen && s.ftue.secondRoundDone) {
-      primary = { label: t('continue'), icon: '▶', go: home };
+      primary = { label: t('continue'), icon: 'play', go: home };
       secondary = undefined;
     } else if (nxt) {
-      primary = { label: t('next_level'), icon: '▶', go: () => leave(() => playAgain({ mode: 'journey', level: nxt.id })) };
+      primary = { label: t('next_level'), icon: 'play', go: () => leave(() => playAgain({ mode: 'journey', level: nxt.id })) };
     } else if (S.failed) {
       const ok = canPlayJourney(s, useGame.getState().now());
-      primary = ok ? { label: t('try_again'), icon: '↻', go: () => leave(() => playAgain({ mode: 'journey', level: quiz.levelId })) } : { label: t('journey'), icon: '🗺️', go: () => leave(() => router.replace('/journey')) };
+      primary = ok ? { label: t('try_again'), icon: 'refresh', go: () => leave(() => playAgain({ mode: 'journey', level: quiz.levelId })) } : { label: t('journey'), icon: 'map-marker-path', go: () => leave(() => router.replace('/journey')) };
     } else {
-      primary = { label: t('journey'), icon: '🗺️', go: () => leave(() => router.replace('/journey')) };
+      primary = { label: t('journey'), icon: 'map-marker-path', go: () => leave(() => router.replace('/journey')) };
     }
     void LEVEL_BY_ID;
   } else if (quiz.mode === 'daily') {
-    primary = { label: t('home'), icon: '🏠', go: () => { maybeAskNotifications('daily'); leave(home); } };
+    primary = { label: t('home'), icon: 'home', go: () => { maybeAskNotifications('daily'); leave(home); } };
     secondary = undefined;
   } else {
-    primary = { label: t('play_again'), icon: '↻', go: () => leave(() => playAgain(p)) };
+    primary = { label: t('play_again'), icon: 'refresh', go: () => leave(() => playAgain(p)) };
   }
 
   const onDouble = async () => {

@@ -3,7 +3,7 @@
 // big button into the next round. Tap anywhere to skip to the end.
 import { Image } from 'expo-image';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP } from '../config/app';
@@ -14,6 +14,8 @@ import { fx } from '../components/fx';
 import { CoinPill, CountUp, LevelBadge } from '../components/hud';
 import { ShareCard } from '../components/ShareCard';
 import { BigButton, PopIn, Press, ProgressBar, SmallButton, T } from '../components/ui';
+import { Coin, Icon, type IconName } from '../components/Icon';
+import { GridSquares } from '../components/round';
 import { FLAG_IMAGES } from '../data/flagImages';
 import { itemName } from '../data/gameData';
 import { haptic } from '../feedback/haptics';
@@ -27,10 +29,10 @@ import { ads } from '../services/ads';
 import { shareCard } from '../services/share';
 import { useGame } from '../store/store';
 import { rewardItems } from './rewardItems';
-import { colors, layout, motion, radius, shadow, type Palette } from '../theme';
+import { layout, motion, radius, shadow, sizes, type, type Palette } from '../theme';
 import { usePalette, useStyles } from '../theme/usePalette';
 
-export type NextAction = { label: string; icon?: string; go: () => void };
+export type NextAction = { label: string; icon?: IconName; go: () => void };
 
 export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, onDouble, grid }: {
   summary: RoundSummary; quiz: QuizDef; coinsBefore: number; primary: NextAction; secondary?: NextAction;
@@ -38,7 +40,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
 }) {
   const colors = usePalette();
   const st = useStyles(make_st);
-  const { width: SW } = useWindowDimensions();
+  const { width: SW, height: SH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(SW, layout.maxWidth);
   const save = useGame((g) => g.save);
@@ -61,7 +63,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
   const specs = useMemo(() => {
     const out: CelebrationSpec[] = [];
     for (const u of S.levelUps) {
-      out.push({ kind: u.reward.chest ? 'chest' : 'level', icon: u.reward.chest ? '🎁' : '⭐', title: t('level_up'), subtitle: t('level_reached', { n: u.level }), rewards: rewardItems(u.reward, u.coins) });
+      out.push({ kind: u.reward.chest ? 'chest' : 'level', icon: u.reward.chest ? 'treasure-chest' : 'star-four-points', title: t('level_up'), subtitle: t('level_reached', { n: u.level }), rewards: rewardItems(u.reward, u.coins) });
     }
     return out;
   }, [S]);
@@ -110,12 +112,12 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
     queue.current = [...list];
     if (S.chest) {
       queue.current.push({
-        kind: 'chest', icon: '🎁', title: t('chest_title'), subtitle: t(`chapter_${CHAPTERS[LEVEL_BY_ID[S.levelId!].chapterIndex].id}` as never),
-        rewards: [{ icon: '🪙', label: `+${fmt(S.chest.coins)}` }, { icon: '½', label: '+1' }, { icon: '❄️', label: '+1' }, { icon: '🏅', label: t('title_chapter', { chapter: t(`chapter_${CHAPTERS[LEVEL_BY_ID[S.levelId!].chapterIndex].id}` as never) }) }],
+        kind: 'chest', icon: 'treasure-chest', title: t('chest_title'), subtitle: t(`chapter_${CHAPTERS[LEVEL_BY_ID[S.levelId!].chapterIndex].id}` as never),
+        rewards: [{ icon: 'coin', label: `+${fmt(S.chest.coins)}` }, { icon: 'circle-half-full', label: '+1' }, { icon: 'snowflake', label: '+1' }, { icon: 'medal', label: t('title_chapter', { chapter: t(`chapter_${CHAPTERS[LEVEL_BY_ID[S.levelId!].chapterIndex].id}` as never) }) }],
       });
     }
-    if (S.streakMilestone) queue.current.push({ kind: 'streak', icon: '🔥', title: t('streak_milestone', { n: S.streakMilestone.days }), rewards: [{ icon: '🪙', label: `+${fmt(S.streakMilestone.coins)}` }] });
-    for (const r of S.regions) queue.current.push({ kind: 'region', icon: '🗺️', title: t('region_complete', { region: t(`region_${r}` as never) }), rewards: [{ icon: '🪙', label: `+${balance.rewards.regionCompleteCoins}` }] });
+    if (S.streakMilestone) queue.current.push({ kind: 'streak', icon: 'fire', title: t('streak_milestone', { n: S.streakMilestone.days }), rewards: [{ icon: 'coin', label: `+${fmt(S.streakMilestone.coins)}` }] });
+    for (const r of S.regions) queue.current.push({ kind: 'region', icon: 'earth', title: t('region_complete', { region: t(`region_${r}` as never) }), rewards: [{ icon: 'coin', label: `+${balance.rewards.regionCompleteCoins}` }] });
     setCelebrate(queue.current.shift() ?? null);
   };
   const extraShown = useRef(false);
@@ -156,7 +158,7 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
 
   const onShare = async () => {
     const r = await shareCard(shareRef, shareText, S.mode);
-    if (r === 'copied') setShareMsg('📋 ✓');
+    if (r === 'copied') setShareMsg(t('copied'));
   };
 
   const doDouble = async () => {
@@ -173,90 +175,129 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
     if (beat === 9 && doubleOk) ads.offerShown('double_coins');
   }, [beat, doubleOk]);
 
+  // ---- layout: everything fits on one screen. The density follows the height that is really free:
+  // full (all cards), compact (smaller score, missions on one line), tiny (cards and streak folded into the rewards card)
+  const avail = SH - insets.top - insets.bottom;
+  const compact = avail < 800;
+  const tiny = avail < 700;
+  const cards = [...newCards, ...masteryUps];
+  const maxCards = Math.max(3, Math.floor((W - 24 - 28) / 66));
+  const shownCards = cards.length > maxCards ? cards.slice(0, maxCards - 1) : cards;
+  const moreCards = cards.length - shownCards.length;
+
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
+      <View style={[st.rays]} pointerEvents="none" />
       <View style={[st.top, { paddingTop: insets.top + 8, width: W, alignSelf: 'center' }]} pointerEvents="box-none">
         <LevelBadge level={xpShown.level} xp={xpShown.xp} need={need} />
         <CoinPill value={coinsShown} bumpKey={bump} />
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={[st.scroll, { width: W, alignSelf: 'center', paddingBottom: insets.bottom + 32 }]}
-        onScrollBeginDrag={skip} onTouchEnd={() => beat < 9 && skip()} showsVerticalScrollIndicator={false} testID="result-skip">
-        <Pressable onPress={skip}>
-          <View ref={scoreRef} style={[st.scoreCard, shadow.card]}>
-            <T size={14} weight="black" color={colors.inkSoft}>{t('result_title')}</T>
-            <PopIn><T size={30} weight="black" center>{headline}</T></PopIn>
-            <View style={st.scoreRow}>
-              <T size={52} weight="black" color={colors.accent}>{beat >= 1 ? `${S.correct}` : '?'}</T>
-              <T size={30} weight="black" color={colors.ink}>{`/${S.total}`}</T>
-            </View>
-            {isJourney ? <Stars n={S.stars} beat={beat} /> : null}
-            {grid ? <T size={18}>{gridFor(grid)}</T> : null}
-            <View style={st.scoreLine}>
-              <T size={12} weight="bold" color={colors.inkSoft}>{t('score')}</T>
-              {beat >= 1 ? <CountUp value={S.score} size={22} sound /> : <T size={22} weight="black">0</T>}
-              {S.isBest && beat >= 1 ? <PopIn delay={500}><View style={st.best}><T size={11} weight="black" color={colors.white}>{t('new_best')}</T></View></PopIn> : null}
-            </View>
-            {S.maxCombo >= 3 ? <T size={12} weight="bold" color={colors.flame}>{`🔥 ${t('combo')} x${Math.min(5, S.maxCombo)}`}</T> : null}
-          </View>
-        </Pressable>
 
-        {beat >= 5 ? (
-          <PopIn style={[st.card, shadow.soft]}>
-            <View style={st.rewardRow}>
-              <View style={st.reward}><View style={st.coinIcon} /><T size={20} weight="black">{`+${fmt(S.coinsTotal + (doubled ? S.coinsTotal : 0))}`}</T></View>
-              <View style={st.reward}><T size={18} color={colors.accent}>✦</T><T size={20} weight="black">{`+${fmt(S.xpTotal)} XP`}</T></View>
-              {S.heartLost ? <View style={st.reward}><T size={16}>💔</T><T size={14} weight="bold" color={colors.wrong}>{t('heart_lost')}</T></View> : null}
-            </View>
-            {beat >= 6 ? (
-              <View style={{ gap: 4, marginTop: 8 }}>
-                <T size={11} weight="bold" color={colors.inkSoft}>{t('goal_level', { n: xpShown.level + 1, xp: Math.max(0, need - xpShown.xp) })}</T>
-                <ProgressBar value={need ? xpShown.xp / need : 1} />
+      <Pressable style={[st.middle, { width: W }]} onPress={skip} testID="result-skip">
+        {/* score */}
+        <View ref={scoreRef} style={[st.scoreCard, shadow.card, compact && { paddingVertical: 12 }]}>
+          <View style={st.ribbon}><T size={type.caption} weight="black" color={colors.white}>{t('result_title')}</T></View>
+          <PopIn><T size={compact ? type.title + 4 : type.display} weight="black" center lines={1} shrink>{headline}</T></PopIn>
+          <View style={st.scoreRow}>
+            <T size={tiny ? type.hero - 14 : compact ? type.hero - 8 : type.hero} weight="black" color={colors.accent}>{beat >= 1 ? `${S.correct}` : '?'}</T>
+            <T size={compact ? type.title + 4 : type.display} weight="black" color={colors.ink}>{`/${S.total}`}</T>
+          </View>
+          {isJourney ? <Stars n={S.stars} beat={beat} size={tiny ? 34 : compact ? 38 : 46} /> : null}
+          {grid ? <GridSquares results={grid} /> : null}
+          <View style={st.scoreLine}>
+            <T size={type.label} weight="bold" color={colors.inkSoft}>{t('score')}</T>
+            {beat >= 1 ? <CountUp value={S.score} size={type.title} sound /> : <T size={type.title} weight="black">0</T>}
+            {S.isBest && beat >= 1 ? <PopIn delay={500}><View style={st.best}><T size={type.caption} weight="black" color={colors.white}>{t('new_best')}</T></View></PopIn> : null}
+            {S.maxCombo >= 3 ? (
+              <View style={st.comboTag}><Icon name="fire" size={14} color={colors.flame} /><T size={type.caption} weight="black" color={colors.flame}>{`${t('combo')} x${Math.min(5, S.maxCombo)}`}</T></View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* rewards: coins, XP and the bar to the next level */}
+        <View style={[st.card, shadow.soft, beat < 5 && st.hidden]}>
+          {beat >= 5 ? (
+            <PopIn style={{ gap: 8 }}>
+              <View style={st.rewardRow}>
+                <View style={st.reward}><Coin size={24} /><T size={type.title} weight="black">{`+${fmt(S.coinsTotal + (doubled ? S.coinsTotal : 0))}`}</T></View>
+                <View style={st.reward}><Icon name="star-four-points" size={22} color={colors.accent} /><T size={type.title} weight="black">{`+${fmt(S.xpTotal)} XP`}</T></View>
+                {S.heartLost ? <View style={st.reward}><Icon name="heart-broken" size={20} color={colors.wrong} /><T size={type.label} weight="bold" color={colors.wrong}>{t('heart_lost')}</T></View> : null}
+                {tiny && cards.length ? <View style={st.reward}><Icon name="book-open-variant" size={20} color={colors.accent} /><T size={type.title} weight="black">{`+${cards.length}`}</T></View> : null}
+              </View>
+              <View style={{ gap: 4, opacity: beat >= 6 ? 1 : 0 }}>
+                <T size={type.caption} weight="bold" color={colors.inkSoft}>{t('goal_level', { n: xpShown.level + 1, xp: Math.max(0, need - xpShown.xp) })}</T>
+                <ProgressBar value={need ? xpShown.xp / need : 1} height={8} />
+              </View>
+              {tiny ? <View style={{ opacity: beat >= 8 ? 1 : 0 }}><StreakLine summary={S} /></View> : null}
+            </PopIn>
+          ) : <View style={{ height: 64 }} />}
+        </View>
+
+        {/* new Atlas cards: one row, never hidden under the buttons */}
+        {cards.length && !tiny ? (
+          <View style={[st.card, shadow.soft, { paddingVertical: 10 }, beat < 7 && st.hidden]}>
+            {beat >= 7 ? (
+              <PopIn style={{ gap: 6 }}>
+                <View style={st.rowBetween}>
+                  <View style={st.inline}><Icon name="book-open-variant" size={16} color={colors.accent} /><T size={type.label} weight="black">{t('new_cards')}</T></View>
+                  <T size={type.label} weight="black" color={colors.accent}>{`+${cards.length}`}</T>
+                </View>
+                <View style={st.cards}>
+                  {shownCards.map((c, i) => <AtlasCardFlip key={c.key} id={c.id} kind={c.kind} delay={i * 110} mastery={c.masteryUp} />)}
+                  {moreCards > 0 ? <View style={[st.atlasCard, st.moreCard]}><T size={type.heading} weight="black" color={colors.accent}>{`+${moreCards}`}</T></View> : null}
+                </View>
+              </PopIn>
+            ) : <View style={{ height: 92 }} />}
+          </View>
+        ) : null}
+
+        {/* streak and missions */}
+        {!tiny ? <View style={[st.card, shadow.soft, { gap: 6, paddingVertical: 10 }, beat < 8 && st.hidden]}>
+          {beat >= 8 ? (
+            <PopIn style={{ gap: 6 }}>
+              <StreakLine summary={S} />
+              {compact ? (
+                S.missions.length ? (
+                  <View style={st.inline}>
+                    <Icon name="clipboard-check" size={16} color={colors.correct} />
+                    <T size={type.label} weight="bold">{`${t('missions')} · ${S.missions.filter((m) => m.done).length}/${S.missions.length}`}</T>
+                  </View>
+                ) : null
+              ) : S.missions.map((m) => (
+                <View key={m.id} style={st.missionRow}>
+                  <Icon name={m.done ? 'check-circle' : 'clipboard-check-outline'} size={18} color={m.done ? colors.correct : colors.inkSoft} />
+                  <T size={type.label} weight="bold" style={{ flex: 1 }} lines={1}>{t(`mission_${m.id}` as never, { n: m.target })}</T>
+                  <View style={{ width: 60 }}><ProgressBar value={m.to / m.target} color={m.done ? colors.correct : colors.gold} height={6} /></View>
+                  <T size={type.caption} weight="black" color={m.done ? colors.correct : colors.inkSoft} style={{ width: 34, textAlign: 'right' }}>{`${Math.min(m.to, m.target)}/${m.target}`}</T>
+                </View>
+              ))}
+            </PopIn>
+          ) : <View style={{ height: 22 }} />}
+        </View> : null}
+      </Pressable>
+
+      {/* the next round: the biggest button, sliding up when the rewards are done */}
+      <View style={[st.actions, { width: W, paddingBottom: insets.bottom + 10 }]}>
+        {beat >= 9 ? (
+          <SlideUp>
+            {S.nearMiss ? (
+              <View style={st.nearMiss}>
+                <Icon name="star" size={18} color={colors.gold} />
+                <T size={type.body} weight="black" color={colors.accent} center>
+                  {S.nearMiss.need === 1 ? t('near_miss_one', { stars: S.nearMiss.stars }) : t('near_miss_stars', { n: S.nearMiss.need, stars: S.nearMiss.stars })}
+                </T>
               </View>
             ) : null}
-          </PopIn>
-        ) : null}
-
-        {beat >= 7 && (newCards.length || masteryUps.length) ? (
-          <PopIn style={[st.card, shadow.soft]}>
-            <T size={13} weight="black" color={colors.inkSoft}>{`${t('new_cards')} · ${newCards.length}`}</T>
-            <View style={st.cards}>
-              {[...newCards, ...masteryUps].slice(0, 8).map((c, i) => <AtlasCardFlip key={c.key} id={c.id} kind={c.kind} delay={i * 110} mastery={c.masteryUp} />)}
+            <BigButton label={primary.label} icon={primary.icon} onPress={primary.go} breathe testID="result-primary" />
+            <View style={st.secondaryRow}>
+              {secondary ? <SmallButton label={secondary.label} icon="home" onPress={secondary.go} testID="result-home" style={{ flex: 1 }} /> : null}
+              <SmallButton label={shareMsg ?? t('share')} icon={shareMsg ? 'check-bold' : 'share-variant'} onPress={onShare} testID="result-share" style={{ flex: 1 }} />
+              {doubleOk && !doubled ? <SmallButton label={t('double_short')} icon="play-circle" color={colors.gold} textColor={colors.white} onPress={doDouble} testID="result-double" style={{ flex: 1.3 }} /> : null}
             </View>
-          </PopIn>
-        ) : null}
-
-        {beat >= 8 ? (
-          <PopIn style={[st.card, shadow.soft, { gap: 8 }]}>
-            <StreakLine summary={S} />
-            {S.missions.map((m) => (
-              <View key={m.id} style={{ gap: 3 }}>
-                <View style={st.rowBetween}>
-                  <T size={12} weight="bold">{t(`mission_${m.id}` as never, { n: m.target })}</T>
-                  <T size={12} weight="black" color={m.done ? colors.correct : colors.inkSoft}>{m.done ? '✓' : `${m.to}/${m.target}`}</T>
-                </View>
-                <ProgressBar value={m.to / m.target} color={m.done ? colors.correct : colors.gold} height={7} />
-              </View>
-            ))}
-          </PopIn>
-        ) : null}
-
-      </ScrollView>
-      {beat >= 9 ? (
-        <PopIn style={[st.actions, { width: W, paddingBottom: insets.bottom + 10 }]}>
-          {S.nearMiss ? (
-            <T size={15} weight="black" color={colors.accent} center>
-              {S.nearMiss.need === 1 ? t('near_miss_one', { stars: S.nearMiss.stars }) : t('near_miss_stars', { n: S.nearMiss.need, stars: S.nearMiss.stars })}
-            </T>
-          ) : null}
-          <BigButton label={primary.label} icon={primary.icon} onPress={primary.go} breathe testID="result-primary" />
-          <View style={st.secondaryRow}>
-            {secondary ? <SmallButton label={secondary.label} icon="🏠" onPress={secondary.go} testID="result-home" style={{ flex: 1 }} /> : null}
-            <SmallButton label={shareMsg ?? t('share')} icon="↗" onPress={onShare} testID="result-share" style={{ flex: 1 }} />
-            {doubleOk && !doubled ? <SmallButton label={t('double_coins')} icon="▶" color={colors.gold} textColor={colors.white} onPress={doDouble} testID="result-double" style={{ flex: 1.3 }} /> : null}
-          </View>
-        </PopIn>
-      ) : null}
-      <ShareCard ref={shareRef} correct={S.correct} total={S.total} stars={S.stars} grid={grid ? gridFor(grid) : undefined}
+          </SlideUp>
+        ) : <View style={{ height: sizes.big + sizes.small + 10 }} />}
+      </View>
+      <ShareCard ref={shareRef} correct={S.correct} total={S.total} stars={S.stars} results={grid}
         title={upper(t(quiz.topicLabel === 'usa' ? 'q_state' : quiz.topicLabel === 'flags' ? 'q_flag' : 'q_country'))}
         subtitle={upper(t(`topic_${quiz.topicLabel}` as never))} />
       {celebrate ? <Celebration spec={celebrate} onClose={closeCelebration} /> : null}
@@ -264,16 +305,26 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
   );
 }
 
-function Stars({ n, beat }: { n: number; beat: number }) {
+/** The bottom buttons arrive from below with a spring, like a game's "next" panel. */
+function SlideUp({ children }: { children: React.ReactNode }) {
+  const v = useSharedValue(0);
+  useEffect(() => {
+    v.value = withSpring(1, { damping: 14, stiffness: 170, mass: 0.8 });
+  }, [v]);
+  const a = useAnimatedStyle(() => ({ opacity: Math.min(1, v.value * 2), transform: [{ translateY: (1 - v.value) * 140 }] }));
+  return <Animated.View style={[{ gap: 10 }, a]}>{children}</Animated.View>;
+}
+
+function Stars({ n, beat, size }: { n: number; beat: number; size: number }) {
   const st = useStyles(make_st);
   return (
-    <View style={st.stars}>
-      {[1, 2, 3].map((i) => <Star key={i} on={i <= n && beat >= 1 + i} big={i === 2} />)}
+    <View style={[st.stars, { height: size + 14 }]}>
+      {[1, 2, 3].map((i) => <Star key={i} on={i <= n && beat >= 1 + i} big={i === 2} size={size} />)}
     </View>
   );
 }
 
-function Star({ on, big }: { on: boolean; big: boolean }) {
+function Star({ on, big, size }: { on: boolean; big: boolean; size: number }) {
   const colors = usePalette();
   const st = useStyles(make_st);
   const s = useSharedValue(on ? 1 : 0.85);
@@ -281,9 +332,10 @@ function Star({ on, big }: { on: boolean; big: boolean }) {
     if (on) s.value = withSequence(withTiming(1.6, { duration: 120 }), withSpring(1, { damping: 7, stiffness: 220 }));
   }, [on, s]);
   const a = useAnimatedStyle(() => ({ transform: [{ scale: s.value }, { translateY: big ? -6 : 0 }] }));
+  void st;
   return (
     <Animated.View style={a}>
-      <T size={big ? 50 : 42} color={on ? colors.gold : colors.track} style={on ? st.starGlow : undefined}>★</T>
+      <Icon name="star" size={big ? size + 8 : size} color={on ? colors.gold : colors.track} />
     </Animated.View>
   );
 }
@@ -301,9 +353,9 @@ function AtlasCardFlip({ id, kind, delay, mastery }: { id: string; kind: string;
   const flag = kind !== 'state' ? FLAG_IMAGES[id] : undefined;
   return (
     <Animated.View style={[st.atlasCard, mastery ? { borderColor: mastery === 3 ? colors.gold : mastery === 2 ? '#94A3B8' : '#B45309' } : null, a]}>
-      {flag ? <Image source={flag} style={st.atlasFlag} contentFit="cover" /> : <T size={18}>🗺️</T>}
-      <T size={9} weight="bold" center lines={2}>{itemName(id)}</T>
-      {mastery ? <T size={9} weight="black" color={colors.goldDark}>{mastery === 3 ? '🥇' : mastery === 2 ? '🥈' : '🥉'}</T> : <T size={8} weight="black" color={colors.correct}>NEW</T>}
+      {flag ? <Image source={flag} style={st.atlasFlag} contentFit="cover" /> : <Icon name="map-marker" size={22} color={colors.accent} />}
+      <T size={9} weight="bold" center lines={1}>{itemName(id)}</T>
+      {mastery ? <Icon name="medal" size={12} color={mastery === 3 ? colors.gold : mastery === 2 ? '#94A3B8' : '#B45309'} /> : <T size={9} weight="black" color={colors.correct}>{t('new_tag')}</T>}
     </Animated.View>
   );
 }
@@ -313,42 +365,49 @@ function StreakLine({ summary }: { summary: RoundSummary }) {
   const st = useStyles(make_st);
   const e = summary.streak;
   let text = '';
-  if (e.kind === 'started') text = `🔥 ${t('streak_started')}`;
-  else if (e.kind === 'extended') text = `🔥 ${t('streak_day', { n: e.count })}`;
-  else if (e.kind === 'froze') text = `❄️ ${t('streak_froze')}`;
-  else if (e.kind === 'broken') text = `🔥 ${t('streak_day', { n: e.count })}`;
-  else text = `🔥 ${t('streak_day', { n: e.count })}`;
+  if (e.kind === 'started') text = t('streak_started');
+  else if (e.kind === 'froze') text = t('streak_froze');
+  else text = t('streak_day', { n: e.count });
   useEffect(() => {
     if (e.kind === 'started' || e.kind === 'extended' || e.kind === 'froze') play('flame');
   }, [e.kind]);
   return (
     <View style={st.rowBetween}>
-      <T size={14} weight="black" color={colors.flame}>{text}</T>
-      {e.kind !== 'same_day' ? <T size={11} weight="bold" color={colors.inkSoft}>{t('streak_tomorrow')}</T> : null}
+      <View style={st.inline}>
+        <Icon name={e.kind === 'froze' ? 'snowflake' : 'fire'} size={18} color={e.kind === 'froze' ? '#0EA5E9' : colors.flame} />
+        <T size={type.body} weight="black" color={colors.flame} lines={1}>{text}</T>
+      </View>
+      {e.kind !== 'same_day' ? <T size={type.caption} weight="bold" color={colors.inkSoft}>{t('streak_tomorrow')}</T> : null}
     </View>
   );
 }
 
 const make_st = (colors: Palette) => StyleSheet.create({
-  bg: { backgroundColor: colors.bg },
+  bg: { backgroundColor: colors.bg, alignItems: 'center' },
+  rays: { position: 'absolute', top: -200, width: 640, height: 640, borderRadius: 320, backgroundColor: colors.surface, opacity: 0.35 },
   top: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, zIndex: 3 },
-  scroll: { padding: 12, gap: 10 },
-  scoreCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 16, alignItems: 'center', gap: 4 },
+  middle: { flex: 1, paddingHorizontal: 12, paddingTop: 14, gap: 10, justifyContent: 'center' },
+  scoreCard: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 16, paddingTop: 22, paddingBottom: 14, alignItems: 'center', gap: 2, marginTop: 10 },
+  ribbon: { position: 'absolute', top: -12, backgroundColor: colors.accent, borderRadius: radius.pill, paddingHorizontal: 14, height: 24, justifyContent: 'center' },
   scoreRow: { flexDirection: 'row', alignItems: 'baseline' },
-  scoreLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  best: { backgroundColor: colors.flame, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
-  stars: { flexDirection: 'row', gap: 6, alignItems: 'flex-end', height: 62 },
-  starGlow: { textShadowColor: 'rgba(245,158,11,0.6)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14 },
+  scoreLine: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  best: { backgroundColor: colors.flame, borderRadius: 99, paddingHorizontal: 8, height: 20, justifyContent: 'center' },
+  comboTag: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  stars: { flexDirection: 'row', gap: 4, alignItems: 'flex-end' },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 12 },
+  hidden: { opacity: 0 },
   rewardRow: { flexDirection: 'row', gap: 18, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
   reward: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  coinIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FCD34D' },
-  cards: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  atlasCard: { width: 64, height: 78, borderRadius: 10, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center', padding: 4, gap: 2, borderWidth: 2, borderColor: 'transparent' },
+  cards: { flexDirection: 'row', gap: 6 },
+  atlasCard: { width: 60, height: 70, borderRadius: 10, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center', padding: 3, gap: 2, borderWidth: 2, borderColor: 'transparent' },
+  moreCard: { backgroundColor: colors.accentSoft },
   atlasFlag: { width: 40, height: 28, borderRadius: 3 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  missionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nearMiss: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   secondaryRow: { flexDirection: 'row', gap: 8 },
-  actions: { gap: 10, paddingHorizontal: 12, paddingTop: 10, alignSelf: 'center', backgroundColor: colors.bg },
+  actions: { paddingHorizontal: 12, paddingTop: 8, alignSelf: 'center' },
 });
 
 export { Press };
