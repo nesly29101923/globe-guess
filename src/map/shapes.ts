@@ -1,8 +1,10 @@
 // Skia paths for the map, built once from the generated SVG paths and cached.
-import { FillType, Skia, type SkPath } from '@shopify/react-native-skia';
+import { BlurStyle, FillType, Skia, type SkImage, type SkPath } from '@shopify/react-native-skia';
 import type { Topic } from '../config/levels';
 import { COUNTRIES, STATES } from '../data/gameData';
 import type { Scene } from '../logic/types';
+import { map as M } from '../theme';
+import { lodFor, viewRect, zoomAt, type Box, type Cam } from './camera';
 
 type ShapeFile = { shapes: Record<string, string>; medium?: Record<string, string>; coarse?: Record<string, string>; graticule?: string; background?: Record<string, string> };
 
@@ -79,26 +81,80 @@ function hits(b: number[], v: Rect4, wrap: number): boolean {
   return false;
 }
 
-/** Fine detail only for what is on screen around a target view (zoomed in, most of the world is off-screen). */
-export function visibleScopePaths(scene: Scene, topic: Topic | 'all', view: Rect4): { scope: SkPath; other: SkPath } {
-  const wrap = scene === 'world' ? 2 * Math.PI * 100 : 0;
-  const key = `vis:${scene}:${topic}:${view.map((x) => Math.round(x)).join(',')}`;
-  const all = scene === 'usa' ? STATES : COUNTRIES;
-  if (scene === 'usa') {
-    const f = file('usa');
-    const bg = Object.keys(f.background ?? {});
-    return {
-      scope: combine(`${key}:s`, 'usa', all.filter((x) => hits(x.bbox, view, 0)).map((x) => x.id), 0),
-      other: combine(`${key}:o`, 'usa', bg, 1),
-    };
-  }
+/** One LOD's land: quiz land (white) and land around it (grey). */
+export type LodPaths = { scope: SkPath; other: SkPath };
+
+function inScopeFn(topic: Topic | 'all') {
   const regions = topic === 'all' ? null : TOPIC_REGIONS[topic];
-  const inScope = (c: (typeof COUNTRIES)[number]) => c.quiz && (!regions || regions.includes(c.region));
-  const vis = COUNTRIES.filter((c) => hits(c.bbox, view, wrap));
-  return {
-    scope: combine(`${key}:s`, 'world', vis.filter(inScope).map((c) => c.id), 0),
-    other: combine(`${key}:o`, 'world', vis.filter((c) => !inScope(c)).map((c) => c.id), 0),
+  return (c: (typeof COUNTRIES)[number]) => c.quiz && (!regions || regions.includes(c.region));
+}
+
+/** Land for one camera flight. A zoomed-in camera shows a small part of the world, so the fine and medium levels of
+ *  detail only hold the countries that can be on screen while that level is drawn (sampled along the flight).
+ *  The coarse level is the whole map and is cached. Drawing the whole world at fine detail every frame was the
+ *  main cost of a camera move. */
+export function flightPaths(scene: Scene, topic: Topic | 'all', from: Cam, to: Cam, box: Box, H: number): LodPaths[] {
+  const coarse = scopePaths(scene, topic, 2);
+  const usa = scene === 'usa';
+  const rects: Rect4[][] = [[], []];
+  const N = 24;
+  for (let i = 0; i <= N; i++) {
+    const c = zoomAt(from, to, i / N, M.zoomCurve);
+    const lod = lodFor(c.w / box.W, usa);
+    if (lod === 2) continue;
+    const r = viewRect(c, box, H);
+    const m = 0.25 * (r[2] - r[0]);
+    rects[lod].push([r[0] - m, r[1] - m, r[2] + m, r[3] + m]);
+  }
+  const wrap = usa ? 0 : 2 * Math.PI * 100;
+  const pick = (lod: 0 | 1): LodPaths => {
+    const rs = rects[lod];
+    if (!rs.length) return EMPTY;
+    const all = usa ? STATES : COUNTRIES;
+    const vis = all.filter((x) => rs.some((r) => hits(x.bbox, r, wrap)));
+    if (usa) {
+      const f = file('usa');
+      const bg = Object.keys(f.background ?? {});
+      return { scope: merge('usa', vis.map((x) => x.id), lod), other: combine('usa:other', 'usa', bg, lod) };
+    }
+    const inScope = inScopeFn(topic);
+    const cs = vis as (typeof COUNTRIES)[number][];
+    return { scope: merge('world', cs.filter(inScope).map((c) => c.id), lod), other: merge('world', cs.filter((c) => !inScope(c)).map((c) => c.id), lod) };
   };
+  return [pick(0), usa ? EMPTY : pick(1), coarse];
+}
+
+const EMPTY: LodPaths = { scope: Skia.PathBuilder.Make().detach(), other: Skia.PathBuilder.Make().detach() };
+
+/** The soft glow under the target, blurred once into a small image instead of blurring the path every frame.
+ *  `sigma` is the blur in map units, `pxPerUnit` the image resolution. Returns the image and where it goes on the map. */
+export function glowImage(path: SkPath, sigma: number, pxPerUnit: number): { image: SkImage; x: number; y: number; w: number; h: number } | null {
+  try {
+    const b = path.getBounds();
+    const pad = sigma * 3;
+    const x = b.x - pad;
+    const y = b.y - pad;
+    const w = b.width + 2 * pad;
+    const h = b.height + 2 * pad;
+    const k = Math.min(pxPerUnit, 256 / Math.max(w, h, 1e-6));
+    const pw = Math.max(4, Math.ceil(w * k));
+    const ph = Math.max(4, Math.ceil(h * k));
+    const surface = Skia.Surface.Make(pw, ph);
+    if (!surface) return null;
+    const canvas = surface.getCanvas();
+    canvas.scale(k, k);
+    canvas.translate(-x, -y);
+    const paint = Skia.Paint();
+    paint.setColor(Skia.Color('#FFFFFF'));
+    paint.setAntiAlias(true);
+    paint.setMaskFilter(Skia.MaskFilter.MakeBlur(BlurStyle.Normal, sigma, true));
+    canvas.drawPath(path, paint);
+    surface.flush();
+    const image = surface.makeImageSnapshot();
+    return { image, x, y, w: pw / k, h: ph / k };
+  } catch {
+    return null;
+  }
 }
 
 export function graticulePath(): SkPath | null {
@@ -125,8 +181,9 @@ function merge(scene: Scene, ids: string[], lod: Lod): SkPath {
   return b.detach();
 }
 
-/** Warm the caches before the first question so nothing hitches. */
+/** Warm the caches before the first question so nothing hitches: the coarse whole map and the graticule.
+ *  Fine and medium detail is built per flight, for the part of the map the camera will show. */
 export function warmScene(scene: Scene, topic: Topic | 'all') {
-  for (const l of [0, 1, 2] as Lod[]) scopePaths(scene, topic, l);
+  scopePaths(scene, topic, 2);
   if (scene === 'world') graticulePath();
 }

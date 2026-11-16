@@ -91,6 +91,19 @@ export function easeInOut(t: number): number {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
+/** Level of detail for a camera: projected units per pixel decide how many points are worth drawing. */
+export function lodFor(unit: number, usa: boolean): 0 | 1 | 2 {
+  'worklet';
+  if (usa) return unit < 0.12 ? 0 : 2;
+  return unit < 0.12 ? 0 : unit < 0.45 ? 1 : 2;
+}
+
+/** The map rectangle a camera shows on a screen of width box.W and height H. */
+export function viewRect(c: Cam, box: Box, H: number): [number, number, number, number] {
+  const s = box.W / c.w;
+  return [c.ux - box.fx / s, c.uy - box.fy / s, c.ux + (box.W - box.fx) / s, c.uy + (H - box.fy) / s];
+}
+
 /** Does a camera (or a move between two) show beyond the world's edge, so the wrapped copies are needed? */
 export function needsWrap(cams: Cam[], box: Box, H: number): boolean {
   for (const c of cams) {
