@@ -31,7 +31,7 @@ export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose:
     play(spec.sound ?? (spec.kind === 'chest' ? 'chest' : spec.kind === 'streak' ? 'flame' : spec.kind === 'unlock' ? 'unlock' : 'levelup'));
     haptic.medium();
     fx.confetti(spec.kind !== 'unlock');
-    rays.value = withRepeat(withTiming(1, { duration: 8000, easing: Easing.linear }), -1);
+    rays.value = withRepeat(withTiming(1, { duration: 12000, easing: Easing.linear }), -1);
     icon.value = withSequence(withSpring(1.25, { damping: 6, stiffness: 180 }), withSpring(1, motion.spring));
     if (spec.kind === 'chest') lid.value = withDelay(350, withSequence(withTiming(-1, { duration: 80 }), withTiming(1, { duration: 80 }), withTiming(-1, { duration: 80 }), withTiming(0, { duration: 80 })));
   }, [spec, rays, icon, lid]);
@@ -40,8 +40,8 @@ export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose:
   return (
     <View style={st.dim}>
       <Animated.View style={[st.rays, raysA]} pointerEvents="none">
-        {Array.from({ length: 12 }, (_, i) => (
-          <View key={i} style={[st.ray, { transform: [{ rotate: `${i * 30}deg` }] }]} />
+        {Array.from({ length: 4 }, (_, i) => (
+          <View key={i} style={[st.ray, { transform: [{ rotate: `${i * 45}deg` }] }]} />
         ))}
       </Animated.View>
       <Animated.View style={[st.iconDisc, shadow.card, iconA]}>
@@ -75,8 +75,9 @@ export function Celebration({ spec, onClose }: { spec: CelebrationSpec; onClose:
 const make_st = (colors: Palette) => StyleSheet.create({
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(30,16,70,0.86)', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 50 },
   iconDisc: { width: 140, height: 140, borderRadius: 70, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  rays: { position: 'absolute', width: 700, height: 700, alignItems: 'center', justifyContent: 'center', opacity: 0.18 },
-  ray: { position: 'absolute', width: 60, height: 700, backgroundColor: colors.gold, borderRadius: 30 },
+  // four bars through the centre make eight rays; the colour carries the transparency (no group opacity)
+  rays: { position: 'absolute', width: 700, height: 700, alignItems: 'center', justifyContent: 'center' },
+  ray: { position: 'absolute', width: 70, height: 700, backgroundColor: 'rgba(245,158,11,0.16)' },
   titleShadow: { textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 3 } },
   rewards: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 20, marginTop: 8 },
   reward: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 10, paddingVertical: 10, alignItems: 'center', width: 96, minHeight: 84, gap: 4, justifyContent: 'center' },

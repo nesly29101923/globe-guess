@@ -135,7 +135,7 @@ const make_st = (colors: Palette) => StyleSheet.create({
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, flex: 1, alignContent: 'flex-start' },
   tileWrap: { width: '48%', flexGrow: 1 },
   tile: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, gap: 8 },
-  tileDone: { borderWidth: 2, borderColor: colors.gold },
+  tileDone: { borderWidth: 2, borderColor: colors.gold, borderBottomColor: colors.gold },
   tileHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tileFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 4 },

@@ -166,21 +166,11 @@ export const sizes = {
   small: 48,    // secondary button height
 };
 
+/** Depth without blur: a darker bottom edge ("ledge"), the look of game buttons, and the cheapest thing to draw.
+ *  The edge colour is translucent, so it darkens whatever colour the card or button has. (Named `shadow` for history.) */
 export const shadow = {
-  card: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
-  },
-  soft: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
+  card: { borderBottomWidth: 4, borderBottomColor: 'rgba(15,23,42,0.18)' },
+  soft: { borderBottomWidth: 3, borderBottomColor: 'rgba(15,23,42,0.13)' },
 };
 
 export const motion = {

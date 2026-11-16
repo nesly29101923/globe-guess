@@ -18,7 +18,9 @@ import { remoteConfig } from '../services/remoteConfig';
 import { flushSave, useGame } from '../store/store';
 import { fontFiles } from '../theme';
 import { iconFont } from '../components/Icon';
-import { useIsDark, usePalette } from '../theme/usePalette';
+import { colors, darkColors } from '../theme';
+import { ThemeProvider, useResolvedDark } from '../theme/usePalette';
+import { FpsMeter } from '../components/FpsMeter';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -26,8 +28,9 @@ export default function RootLayout() {
   // the icon font loads with the text fonts, so no icon pops in late
   const [fontsLoaded, fontError] = useFonts({ ...fontFiles, ...iconFont });
   const ready = useGame((g) => g.ready);
-  const dark = useIsDark();
-  const pal = usePalette();
+  const dark = useResolvedDark();
+  const pal = dark ? darkColors : colors;
+  const showFps = useGame((g) => g.save.settings.showFps);
 
   useEffect(() => {
     installRealProviders();
@@ -56,12 +59,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <ThemeProvider dark={dark}>
         <StatusBar style={dark ? 'light' : 'dark'} />
         {/* freezeOnBlur: screens under the top one (home under a round) stop re-rendering while hidden */}
         <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: pal.bg }, freezeOnBlur: true }} />
         <FxLayer />
         <PromptHost />
         <AdHost />
+        {showFps ? <FpsMeter /> : null}
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

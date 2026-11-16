@@ -81,7 +81,7 @@ const make_st = (colors: Palette) => StyleSheet.create({
   cell: { width: '48%', flexGrow: 1 },
   topic: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2.5, borderColor: 'transparent' },
   topicIcon: { width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  sel: { borderColor: colors.accent },
+  sel: { borderColor: colors.accent, borderBottomColor: colors.accent },
   tiers: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tierCell: { width: '31%', flexGrow: 1 },
   tier: { borderRadius: radius.pill, paddingHorizontal: 10, height: 44, justifyContent: 'center', alignItems: 'center' },

@@ -105,7 +105,7 @@ const CONFETTI_COLORS = [colors.accent, colors.correct, colors.gold, '#0EA5E9', 
 
 function Confetti({ big, onEnd }: { big: boolean; onEnd: () => void }) {
   const { width, height } = useWindowDimensions();
-  const n = big ? 40 : 24; // each piece is an animated view: enough to read as a burst, few enough for 60 fps
+  const n = big ? 28 : 18; // each piece is an animated view: enough to read as a burst, few enough for 60 fps
   const end = useRef(onEnd).current;
   useEffect(() => {
     const h = setTimeout(end, 2600);

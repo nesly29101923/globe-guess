@@ -2,8 +2,8 @@
 // the target in purple with a pulsing glow that turns green on the reveal. All motion runs on the UI thread.
 //
 // Performance (60 fps on a mid-range Android phone):
-// - Three canvases. The land only redraws while the camera moves. The glow canvas pulses every frame but only
-//   draws one small pre-blurred image. The target canvas redraws only on fade-in and reveal.
+// - Three canvases. The land only redraws while the camera moves. The glow canvas is drawn once per question and
+//   pulses through its layer opacity (no redraw). The target canvas redraws only on fade-in and reveal.
 // - Fine and medium detail hold only the countries the camera can show during this flight (see flightPaths).
 // - While the camera moves, land fills skip anti-aliasing and borders are hairlines: both are far cheaper for the
 //   GPU, and in motion the difference cannot be seen. At rest everything is drawn at full quality again.
@@ -11,7 +11,7 @@
 //   most expensive thing on screen during a question).
 import { BlendColor, Canvas, Circle, FilterMode, Group, Image, interpolateColors, LinearGradient, MipmapMode, Path, Rect, vec } from '@shopify/react-native-skia';
 import React, { useEffect, useMemo } from 'react';
-import { Easing, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import type { Topic } from '../config/levels';
 import { itemById } from '../data/gameData';
 import type { Scene } from '../logic/types';
@@ -89,8 +89,10 @@ function MapCanvasImpl(p: Props) {
   const gratW = useDerivedValue(() => 0.8 * unit.value);
   const fillC = useDerivedValue(() => interpolateColors(p.reveal.value, [0, 1], [th.target, th.correct]));
   const edgeC = useDerivedValue(() => interpolateColors(p.reveal.value, [0, 1], [th.targetEdge, th.correctEdge]));
-  const glowOpacity = useDerivedValue(() => p.targetAlpha.value * (p.pulse === false ? 0.6 : 0.35 + 0.5 * pulse.value) * (1 - 0.6 * p.reveal.value));
-  const ringR = useDerivedValue(() => (M.ringRadius + 4 * pulse.value * (1 - p.reveal.value)) * unit.value);
+  // the glow canvas is drawn once; the pulse is the layer's opacity, which costs no redraw
+  const glowOpacity = useDerivedValue(() => p.targetAlpha.value * 0.85 * (1 - 0.6 * p.reveal.value));
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: p.pulse === false ? 0.7 : 0.45 + 0.55 * pulse.value }));
+  const ringR = useDerivedValue(() => M.ringRadius * unit.value);
   const ringW = useDerivedValue(() => 3 * unit.value);
   const tinyOpacity = useDerivedValue(() => (tinyU / unit.value < M.tinyPx ? p.targetAlpha.value : 0));
   const dimOpacity = useDerivedValue(() => p.dim.value);
@@ -137,7 +139,8 @@ function MapCanvasImpl(p: Props) {
           ))}
         </Group>
       </Canvas>
-      {/* 2. glow + ring for tiny targets: pulses every frame, but is one small image */}
+      {/* 2. glow + ring for tiny targets: drawn once per question, pulsed by layer opacity */}
+      <Animated.View style={[style, pulseStyle]} pointerEvents="none">
       <Canvas style={style} pointerEvents="none">
         <Group transform={camT}>
           {target &&
@@ -155,6 +158,7 @@ function MapCanvasImpl(p: Props) {
             ))}
         </Group>
       </Canvas>
+      </Animated.View>
       {/* 3. the target itself and the veil behind flag questions: redraws only on fade-in and reveal */}
       <Canvas style={style} pointerEvents="none">
         <Group transform={camT}>
