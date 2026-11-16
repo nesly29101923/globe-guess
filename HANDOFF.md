@@ -3,6 +3,42 @@
 The playable version of the TrendForge map & flag trivia videos. Expo (SDK 58) + React Native + TypeScript, iOS and
 Android, fully offline, no account.
 
+## Status (16 Nov 2026)
+
+- Repo: https://github.com/nesly29101923/globe-guess (`main`). Nesly's Windows copy:
+  `C:\Users\turgu\Desktop\TrendForgeStudio\trivia-game` (local branch `master`, update with `git pull origin main`).
+- Android APK works on a real phone (EAS preview build). iPhone not built yet (needs the $99 Apple Developer account).
+- Round 2 from phone testing is done and on `main`, **not yet in an APK**: fewer haptics, dark/light/auto mode,
+  pause sheet with sound/vibration/music/appearance, slower XP curve with a reward on every level, result screen
+  scroll fix (buttons pinned). Next step: run `build-android.cmd` and send the new APK link.
+- 31 tests pass, `tsc` clean, balance sim checks pass.
+
+## Building the Android APK (EAS)
+
+- Expo account `nesly29101923`, EAS project id in `app.json` (`extra.eas.projectId`). Builds:
+  https://expo.dev/accounts/nesly29101923/projects/globe-guess/builds
+- Windows: double-click `build-android.cmd` (commits, then `npx eas-cli@latest build -p android --profile preview`).
+  The finished build page has the APK download link; install over the old app, saves are kept.
+- `preview` builds arm64 only (`eas.json` env `ORG_GRADLE_PROJECT_reactNativeArchitectures`); `production` builds both ABIs.
+- Two config plugins keep the cloud build alive, don't remove them:
+  - `plugins/withGradleMemory.js`: Gradle/Kotlin heap limits (the free builder was OOM-killed without them).
+  - `plugins/withProguardKeep.js`: keeps Room/WorkManager classes from R8 (otherwise the app crashes on start with
+    "Failed to create an instance of androidx.work.impl.WorkDatabase").
+- `crash-log.cmd` (phone on USB, developer mode on) launches the app and writes `crash-log.txt` via adb.
+  `install-test.cmd` installs an APK over USB.
+
+## Round 2 notes (where things live)
+
+- Haptics: `src/feedback/haptics.ts`; only answer feedback (light/medium), last star and level-up.
+- Theme: `colors` / `darkColors` in `src/theme/index.ts`; components use `usePalette()` and
+  `useStyles(make_st)` from `src/theme/usePalette.ts`. New styles must take the palette, never hard-code colours.
+  Setting: `save.settings.appearance` (system/light/dark). Dark mode switches the classic map to the night theme.
+- Settings UI: `src/components/SettingsPanel.tsx`, used by the settings page and `src/game/PauseSheet.tsx`
+  (opened by the ⚙ / ✕ buttons in a round; the timer pauses).
+- Levels: `balance.levelRewards` (mode unlocks 2/3/5, power-ups, level-only cosmetics, titles, chests and coins at
+  10/15/20/25/30/40/50); `src/logic/progression.ts` grants them; home shows the next reward card.
+- Result screen: buttons are pinned outside the ScrollView (`ResultScreen.tsx`, `st.actions`); a tap or scroll skips the beats.
+
 ## Run it
 
 ```bash
