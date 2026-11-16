@@ -9,7 +9,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSeq
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { balance } from '../config/balance';
 import { CHAPTERS, LEVELS, type LevelDef } from '../config/levels';
-import { CoinPill, HeartsPill, ScreenHeader, StatPill } from '../components/hud';
+import { HeartsPill, IconButton, ScreenHeader, StatPill } from '../components/hud';
 import { Coin, Icon, type IconName } from '../components/Icon';
 import { BigButton, Press, ProgressBar, Sheet, SheetTitle, SmallButton, T } from '../components/ui';
 import { fmtTime, t } from '../i18n/strings';
@@ -94,11 +94,11 @@ export default function JourneyScreen() {
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
       <View style={[st.top, { paddingTop: insets.top + 8, width: W }]}>
-        <ScreenHeader onBack={() => router.back()} testID="journey-back" right={
+        <ScreenHeader title={t('journey')} onBack={() => router.back()} testID="journey-back" right={
           <View style={st.topRight}>
             <StatPill icon="star" color={colors.gold} value={String(totalStars(save))} />
             {balance.hearts.enabled ? <HeartsPill count={hearts.count} max={balance.hearts.max} nextIn={null} onPress={() => setHeartsSheet(true)} /> : null}
-            <CoinPill value={save.coins} onPress={() => router.push('/shop')} />
+            <IconButton icon="book-open-variant" onPress={() => router.push('/atlas')} testID="journey-atlas" />
           </View>
         } />
       </View>
@@ -256,7 +256,7 @@ const make_st = (colors: Palette) => StyleSheet.create({
   lockedCard: { opacity: 0.85 },
   nodeWrap: { position: 'absolute', width: NODE, alignItems: 'center' },
   node: { alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.white },
-  current: { borderColor: colors.gold },
+  current: { borderColor: colors.gold, borderBottomColor: colors.gold },
   nodeStars: { flexDirection: 'row', justifyContent: 'center', marginTop: 1 },
   marker: { position: 'absolute', top: -26 },
   chestTag: { position: 'absolute', right: -24, top: -4 },

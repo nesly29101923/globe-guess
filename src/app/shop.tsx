@@ -1,6 +1,6 @@
 // Shop: power-ups and items for coins, map themes and button styles (the long-term sink), coin packs and
 // Remove Ads for money. Every price is shown up front; nothing is bought without a clear tap on its price.
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,8 @@ import { Dot, PopIn, Press, T } from '../components/ui';
 import { haptic } from '../feedback/haptics';
 import { play } from '../feedback/sfx';
 import { fmt, t, upper } from '../i18n/strings';
-import { buy, buyCosmetic, grantProduct, priceOf, starterAvailable, type ShopItem } from '../logic/economy';
+import { buy, buyCosmetic, freeCoinsLeft, grantFreeCoins, grantProduct, priceOf, starterAvailable, type ShopItem } from '../logic/economy';
+import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
 import { purchases } from '../services/purchases';
 import { useGame } from '../store/store';
@@ -50,7 +51,17 @@ export default function ShopScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [bump, setBump] = useState(0);
   const [prices, setPrices] = useState<Record<string, string>>({});
-  const [tab, setTab] = useState<Tab>('items');
+  const params = useLocalSearchParams<{ tab?: Tab }>();
+  const [tab, setTab] = useState<Tab>(params.tab ?? 'items');
+  const today = useGame.getState().today();
+  const freeLeft = freeCoinsLeft(save, today);
+  const onFreeCoins = async () => {
+    const ok = await ads.rewarded('free_coins');
+    if (!ok) return;
+    update((s) => grantFreeCoins(s, today));
+    analytics.log('coins_earned', { source: 'ad_free', amount: balance.ads.rewardedFreeCoins, balance: useGame.getState().save.coins });
+    fx.coins({ x: SW / 2, y: 300 }, 8, { onLand: () => setBump((b) => b + 1) });
+  };
   useEffect(() => {
     analytics.log('shop_opened', {});
     purchases.products().then((ps) => setPrices(Object.fromEntries(ps.map((p) => [p.id, p.localizedPrice]))));
@@ -159,7 +170,7 @@ export default function ShopScreen() {
               const inUse = save.cosmetics.mapTheme === c.id;
               return (
                 <Press key={c.id} onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.themeCell} testID={`theme-${c.id}`}>
-                  <View style={[st.theme, inUse && st.inUse, shadow.soft]}>
+                  <View style={[st.theme, inUse && st.inUse]}>
                     <View style={[st.swatch, { backgroundColor: th.seaTop }]}>
                       <View style={[st.land, { backgroundColor: th.land, borderColor: th.landEdge }]} />
                       <View style={[st.target, { backgroundColor: th.target }]} />
@@ -181,7 +192,7 @@ export default function ShopScreen() {
               const inUse = save.cosmetics.buttonStyle === c.id;
               return (
                 <Press key={c.id} onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.btnCell} testID={`btn-${c.id}`}>
-                  <View style={[st.theme, inUse && st.inUse, shadow.soft]}>
+                  <View style={[st.theme, inUse && st.inUse]}>
                     <View style={[st.btnPreview, { backgroundColor: b.bg, borderColor: b.border ?? 'transparent' }]}>
                       <View style={[st.badge, { backgroundColor: b.badgeBg }]}><T size={type.caption} weight="black" color={b.badgeText}>A</T></View>
                       <T size={type.label} weight="bold" color={b.text}>FRANCE</T>
@@ -208,6 +219,20 @@ export default function ShopScreen() {
               </PopIn>
             ) : null}
             <Section>
+              {!session.firstSession ? (
+                <View style={st.itemRow}>
+                  <View style={[st.itemIcon, { backgroundColor: colors.goldSoft }]}><Icon name="play-circle" size={28} color={colors.gold} /></View>
+                  <View style={{ flex: 1 }}>
+                    <View style={st.inline}><T size={type.heading} weight="black">{t('free_coins')}</T><Coin size={16} /><T size={type.heading} weight="black" color={colors.goldDark}>{`+${balance.ads.rewardedFreeCoins}`}</T></View>
+                    <T size={type.caption} weight="semi" color={colors.inkSoft} lines={2}>{freeLeft > 0 ? t('free_coins_row', { n: freeLeft }) : t('free_coins_none')}</T>
+                  </View>
+                  <Press onPress={onFreeCoins} disabled={freeLeft <= 0 || !ads.rewardedReady()} testID="shop-free-coins">
+                    <View style={[st.buy, { backgroundColor: freeLeft > 0 && ads.rewardedReady() ? colors.gold : colors.chip }]}>
+                      <T size={type.body} weight="black" color={freeLeft > 0 && ads.rewardedReady() ? colors.white : colors.inkSoft}>{t('watch_short')}</T>
+                    </View>
+                  </Press>
+                </View>
+              ) : null}
               {coinPacks.map((p, i) => (
                 <View key={p.id} style={st.itemRow}>
                   <View style={[st.itemIcon, { backgroundColor: colors.goldSoft }]}>

@@ -108,7 +108,8 @@ export const balance = {
 
   powerupTeachAtLevel: { fiftyFifty: 3, freeze: 4, skip: 6, secondChance: 5 },
 
-  unlocks: { dailyChallenge: 2, quickPlay: 3, survival: 5, shop: 2 },
+  /** Level at which each system appears. Until then it is not on screen at all (a new player sees one thing: PLAY). */
+  unlocks: { dailyChallenge: 2, quickPlay: 3, survival: 5, shop: 2, missions: 4 },
 
   /** Something to look forward to at every level: unlocks, gifts, titles; a chest every 5 levels. */
   levelRewards: {
