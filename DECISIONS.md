@@ -73,3 +73,33 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - Pause sheet (⚙ in round) holds sound/vibration/music/appearance.
 - Result screen: buttons pinned outside the ScrollView; no full-screen skip overlay.
 - Slower XP curve (L5 ≈ 8 min, L10 ≈ 27 min) and a reward on every level (balance.levelRewards); home shows next reward.
+
+## Round 3 (phone feedback: performance, "feels like an app", UI consistency)
+- **Map performance.** The land canvas drew the whole world at fine detail (1.25 MB of paths), twice (shadow + land),
+  with anti-aliased fills and re-stroked borders on every frame of a camera move, and the target's glow was a blur
+  re-computed every frame for the whole question. Now: fine and medium detail hold only the countries the camera can
+  show during that flight (`flightPaths`, sampled along the van Wijk path); the coarse whole map is cached; only quiz
+  land gets the shadow; while the camera moves, fills skip anti-aliasing and borders are hairlines (cheap on the GPU,
+  invisible in motion), full quality returns when it stops; the glow is blurred once per question into a small image
+  and only its opacity pulses, on its own canvas, so the target layer redraws only on fade-in and reveal. The round no
+  longer builds the whole world at fine detail before the first question.
+- **Performance everywhere.** Home re-rendered every second (a 1 s timer for countdowns) and kept doing it under the
+  round; countdowns are now their own small components. Screens under the top one are frozen (`freezeOnBlur`).
+  Endless animations (breathing PLAY, flame, wobble, pulsing red dots, Journey node) run only on the focused screen;
+  red dots no longer pulse. The round re-rendered every second for the timer number; the number is now a tiny store
+  read only by the timer. The round subscribes to the five save fields it shows, not the whole save. Count-ups update
+  ~30 times a second instead of every frame. Confetti 40/24 pieces instead of 60/32.
+- **Icons, not emoji.** Material Community Icons via `@expo/vector-icons` (a font: no native module, cheap to draw,
+  loaded with the text fonts). Emoji render differently per phone and read as childish / app-like. Coins are drawn.
+- **Type scale and control sizes** in the theme; HUD pills, coin pill (+ button) and settings button are all 44 tall.
+- **Answers share one text size** (they were each fitted separately, so "BRAZIL" was bigger than "URUGUAY"). Floor 12;
+  only a single word that cannot fit (LIECHTENSTEIN) gets its own smaller size instead of breaking mid-word.
+- **Home without scrolling, laid out like a game lobby**: the map as backdrop framed on the current chapter, side
+  buttons (streak, Daily, missions | daily reward, free coins, offer) that open sheets explaining what they give,
+  the chapter card with PLAY and the next goal, a dock for Journey / Quick / Survival / Atlas / Shop. "Free coins" is now
+  a visible side button with "+100" and a sheet saying what the video gives, what coins are for and how many are left.
+- **Result without scrolling**: compact cards, Atlas cards in one row ("+N" for the rest), missions folded on short
+  phones, the density chosen from the height left after safe areas; the Next button slides up from the bottom.
+- **Journey as chapter pages** swiped sideways, ten levels winding up to the boss on one screen, instead of one
+  110-level vertical scroll. **Shop in tabs** (Power-ups / Maps / Buttons / Coins). **Atlas** regions as tiles; a region's
+  cards open in a sheet (the one list that scrolls). **Quick Play** fits one screen.

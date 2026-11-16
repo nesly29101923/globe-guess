@@ -32,3 +32,6 @@
   but it must be checked on a real phone.
 - Native builds were generated (`expo prebuild`) but not compiled: no Android SDK or Xcode here.
 - Round 2: haptics, dark mode, pause/settings, level rewards, result scroll fix (31 tests pass).
+- Round 3: map and app-wide performance, icons instead of emoji, type scale and equal HUD heights, equal answer sizes,
+  no-scroll home / result / Journey / Quick Play / Atlas, shop tabs, explained free coins (see DECISIONS.md). Checked in
+  the web preview at 390x844, 390x763 and 390x667, light and dark; fps still needs a real phone.

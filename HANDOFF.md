@@ -8,9 +8,12 @@ Android, fully offline, no account.
 - Repo: https://github.com/nesly29101923/globe-guess (`main`). Nesly's Windows copy:
   `C:\Users\turgu\Desktop\TrendForgeStudio\trivia-game` (local branch `master`, update with `git pull origin main`).
 - Android APK works on a real phone (EAS preview build). iPhone not built yet (needs the $99 Apple Developer account).
-- Round 2 from phone testing is done and on `main`, **not yet in an APK**: fewer haptics, dark/light/auto mode,
-  pause sheet with sound/vibration/music/appearance, slower XP curve with a reward on every level, result screen
-  scroll fix (buttons pinned). Next step: run `build-android.cmd` and send the new APK link.
+- Round 2 (haptics, dark mode, pause sheet, XP curve, level rewards) and **round 3** (below) are on `main`,
+  **not yet in an APK**. Next step: run `build-android.cmd` and send the new APK link.
+- Round 3 from phone testing: map and app-wide performance work, icons instead of emoji (`@expo/vector-icons`, a new
+  JS-only dependency: run `npm install`), one type scale and equal HUD heights, the four answers share one text size,
+  home / result / Journey / Quick Play / Atlas fit on one screen without scrolling, shop in tabs, free coins explained
+  in a sheet. Reasons in `DECISIONS.md`, rules in `docs/UI_STYLE.md`.
 - 31 tests pass, `tsc` clean, balance sim checks pass.
 
 ## Building the Android APK (EAS)
@@ -26,6 +29,16 @@ Android, fully offline, no account.
     "Failed to create an instance of androidx.work.impl.WorkDatabase").
 - `crash-log.cmd` (phone on USB, developer mode on) launches the app and writes `crash-log.txt` via adb.
   `install-test.cmd` installs an APK over USB.
+
+## Round 3 notes (where things live)
+
+- Map: `src/map/MapCanvas.tsx` (three canvases: land, glow, target), `flightPaths` and `glowImage` in `src/map/shapes.ts`,
+  `StaticMap` for the home backdrop. The round passes `flight` and `moving` to the map.
+- Icons: `src/components/Icon.tsx` (`Icon`, `Coin`, `RewardIcon`, `ICONS`). Chapter icons are icon names in `config/levels.ts`.
+- Sizes: `type` and `sizes` in `src/theme/index.ts`. Popups: `Sheet` / `SheetTitle` in `components/ui.tsx`.
+- Home sheets (missions, free coins, streak, Daily, level) live in `src/game/HomeScreen.tsx`.
+- First thing to check on the phone: camera moves and the question screen should be smooth now; if a mid-range phone
+  still drops frames during a move, the next lever is `lodFor` in `src/map/camera.ts` (switch to coarser detail sooner).
 
 ## Round 2 notes (where things live)
 
