@@ -17,6 +17,7 @@ const ICONS: Record<string, IconName> = {
   world_map: 'earth', usa_map: 'flag-variant', world_flags: 'flag', europe_map: 'castle', asia_map: 'temple-buddhist', africa_map: 'elephant',
   americas_map: 'earth', oceania_map: 'palm-tree', europe_flags: 'flag-outline', pick_flag: 'flag-checkered',
   world_capitals: 'city-variant', europe_capitals: 'city', usa_capitals: 'bank',
+  world_bigger: 'resize', world_borders: 'vector-difference', usa_borders: 'vector-difference-ab',
 };
 
 export default function QuickScreen() {

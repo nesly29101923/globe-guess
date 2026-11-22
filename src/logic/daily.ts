@@ -2,7 +2,7 @@
 import { balance } from '../config/balance';
 import { DAILY_RECIPE, TIER_MIX } from '../config/levels';
 import { pool, capitalPool } from '../data/gameData';
-import { makeQuestion, pickItems } from './picker';
+import { addSpecial, makeQuestion, pickItems } from './picker';
 import { makeRng } from './rng';
 import type { MissionState, SaveState } from './save';
 import type { Question } from './types';
@@ -128,6 +128,10 @@ export function dailyQuestions(day: string): Question[] {
   const qs: Question[] = [];
   const taken = new Set<string>();
   for (const part of DAILY_RECIPE) {
+    if (part.type === 'bigger' || part.type === 'borders') {
+      addSpecial(qs, part.type, part.count, part.topic, TIER_MIX.mixed, rng, {}, taken);
+      continue;
+    }
     const p = part.type === 'capital' ? capitalPool(part.topic) : pool(part.topic, part.type !== 'map');
     const ids = new Set(p.map((x) => x.id));
     for (const x of pickItems(p, part.count, TIER_MIX.mixed, rng, {}, taken)) {

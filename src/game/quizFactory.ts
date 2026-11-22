@@ -4,7 +4,7 @@ import { FIRST_ROUND, LEVEL_BY_ID, QUICK_TOPICS, TIER_MIX, type QType, type Tier
 import { capitalPool, pool } from '../data/gameData';
 import { cardKey } from '../logic/atlas';
 import { dailyQuestions } from '../logic/daily';
-import { buildRound, makeQuestion, pickItems, type PickPrefs } from '../logic/picker';
+import { addSpecial, buildRound, makeQuestion, pickItems, type PickPrefs } from '../logic/picker';
 import { makeRng } from '../logic/rng';
 import type { SaveState } from '../logic/save';
 import type { Question, QuizDef, Tier } from '../logic/types';
@@ -75,7 +75,14 @@ export function survivalBatch(correctSoFar: number, used: Set<string>, rng = mak
   const out: Question[] = [];
   for (let i = 0; i < 5; i++) {
     const r = rng.next();
-    const type: QType = r < 0.6 ? 'map' : r < 0.85 ? 'flag' : 'capital';
+    const type: QType = r < 0.55 ? 'map' : r < 0.8 ? 'flag' : r < 0.93 ? 'capital' : 'borders';
+    if (type === 'borders') {
+      const mixB: TierMix = [0, 0, 0, 0, 0];
+      mixB[ti] = 1;
+      const before = out.length;
+      addSpecial(out, 'borders', 1, 'world', mixB, rng, { recent: used }, used);
+      if (out.length > before) continue;
+    }
     const p = type === 'capital' ? capitalPool('world').map((x) => ({ ...x, tier: x.tier })) : pool('world', type !== 'map');
     const ids = new Set(p.map((x) => x.id));
     const mix: TierMix = [0, 0, 0, 0, 0];

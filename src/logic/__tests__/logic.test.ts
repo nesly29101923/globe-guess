@@ -319,7 +319,8 @@ describe('capital questions', () => {
 
   test('disputed or split capitals are never asked', () => {
     const qs = build('world', { capital: 1 }, [0.2, 0.2, 0.2, 0.2, 0.2], 200, rngOf('cap-all'));
-    for (const q of qs) for (const o of q.options) expect(['BO', 'ZA', 'IL', 'LK', 'SZ', 'NR']).not.toContain(o);
+    // (200 is more than there are capitals: the rest of the round is filled with map questions, which may be anywhere)
+    for (const q of qs.filter((x: { type: string }) => x.type === 'capital')) for (const o of q.options) expect(['BO', 'ZA', 'IL', 'LK', 'SZ', 'NR']).not.toContain(o);
   });
 
   test('a mixed round never asks the same place twice', () => {
@@ -331,5 +332,60 @@ describe('capital questions', () => {
     const qs = daily('2026-11-22');
     expect(qs.filter((q: { type: string }) => q.type === 'capital')).toHaveLength(1);
     expect(new Set(qs.map((q: { itemId: string }) => q.itemId)).size).toBe(qs.length);
+  });
+});
+
+describe('bigger and borders questions', () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { buildRound: build, MIN_AREA_RATIO } = require('../picker');
+  const { makeRng: rngOf } = require('../rng');
+  const { borderInfo, areaOf, itemById } = require('../../data/gameData');
+  const { dailyQuestions: daily } = require('../daily');
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const mix = [0.2, 0.2, 0.2, 0.2, 0.2];
+
+  test('bigger: two places, the answer is the bigger one by a clear margin', () => {
+    for (const topic of ['world', 'europe', 'usa', 'americas']) {
+      for (const q of build(topic, { bigger: 1 }, mix, 10, rngOf(`big-${topic}`)).filter((x: { type: string }) => x.type === 'bigger')) {
+        expect(q.options).toHaveLength(2);
+        const [a, b] = q.options.map((o: string) => areaOf(itemById(o)));
+        const big = Math.max(a, b);
+        expect(areaOf(itemById(q.options[q.answer]))).toBe(big);
+        expect(q.options[q.answer]).toBe(q.itemId);
+        expect(big / Math.min(a, b)).toBeGreaterThanOrEqual(MIN_AREA_RATIO);
+      }
+    }
+  });
+
+  test('borders: exactly one option borders the subject, and the others are clearly apart', () => {
+    for (const topic of ['world', 'africa', 'usa', 'europe']) {
+      const qs = build(topic, { borders: 1 }, mix, 10, rngOf(`bor-${topic}`)).filter((x: { type: string }) => x.type === 'borders');
+      expect(qs.length).toBeGreaterThan(5);
+      for (const q of qs) {
+        const info = borderInfo(q.subjectId);
+        expect(q.options).toHaveLength(4);
+        expect(q.options.filter((o: string) => info.borders.includes(o))).toEqual([q.itemId]);
+        for (const o of q.options) if (o !== q.itemId) expect(info.far).toContain(o);
+      }
+    }
+  });
+
+  test('arguable borders are never asked', () => {
+    const bad = [['DJ', 'SO'], ['AL', 'RS'], ['IN', 'AF'], ['SG', 'MY'], ['US-MI', 'US-IL']];
+    for (const [x, y] of bad) {
+      for (const [s, o] of [[x, y], [y, x]]) {
+        const info = borderInfo(s);
+        if (!info) continue;
+        expect(info.borders).not.toContain(o);
+        expect(info.far).not.toContain(o);
+      }
+    }
+  });
+
+  test('the Daily Challenge has one size question and no place twice', () => {
+    const qs = daily('2026-11-23');
+    expect(qs.filter((q: { type: string }) => q.type === 'bigger')).toHaveLength(1);
+    const used = qs.flatMap((q: { type: string; options: string[]; itemId: string }) => (q.type === 'bigger' ? q.options : [q.itemId]));
+    expect(new Set(used).size).toBe(used.length);
   });
 });

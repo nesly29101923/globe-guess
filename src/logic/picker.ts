@@ -1,7 +1,7 @@
 // Question picking: tiers from a mix, leaning toward undiscovered and recently missed items, avoiding recent
 // repeats (ported from the studio's quiz._pick), with plausible wrong options (nearby items of the same quiz).
 import { TIERS, type QType, type TierMix, type Topic } from '../config/levels';
-import { capitalPool, COUNTRY_BY_ID, itemById, optionLabel, pool, sceneOf } from '../data/gameData';
+import { AREA_LEAVE_OUT, areaOf, borderInfo, capitalPool, COUNTRY_BY_ID, itemById, optionLabel, pool, sceneOf } from '../data/gameData';
 import { capitalOf } from '../data/capitals';
 import type { Rng } from './rng';
 import type { Question, QuestionType, Tier } from './types';
@@ -121,6 +121,101 @@ export function makeQuestion(id: string, tier: Tier, type: QuestionType, poolIds
   return { itemId: id, scene: sceneOf(id), type, tier, options, answer: options.indexOf(id) };
 }
 
+// ---------------------------------------------------------------- which is bigger?
+const TIER_ORDER: Tier[] = ['very_easy', 'easy', 'medium', 'hard', 'very_hard'];
+/** Two places differing by less than this are never compared: area figures differ a little between sources. */
+export const MIN_AREA_RATIO = 1.5;
+const MAX_AREA_RATIO = 8;
+
+/** Places that can be compared, each with at least one fair partner nearby (so the camera shows both). */
+export function biggerPool(topic: Topic): { id: string; tier: Tier }[] {
+  const p = pool(topic, false).filter((x) => !AREA_LEAVE_OUT.has(x.id));
+  const ids = new Set(p.map((x) => x.id));
+  return p.filter((x) => biggerPartners(x.id, ids).length > 0);
+}
+
+function biggerPartners(id: string, ids: ReadonlySet<string>): string[] {
+  const a = itemById(id);
+  return a.near.filter((o) => {
+    if (!ids.has(o) || AREA_LEAVE_OUT.has(o)) return false;
+    const x = areaOf(a);
+    const y = areaOf(itemById(o));
+    if (!x || !y) return false;
+    const r = Math.max(x, y) / Math.min(x, y);
+    return r >= MIN_AREA_RATIO && r <= MAX_AREA_RATIO;
+  });
+}
+
+export function makeBigger(id: string, poolIds: ReadonlySet<string>, rng: Rng, taken: ReadonlySet<string> = new Set()): Question | null {
+  const partners = biggerPartners(id, poolIds).filter((o) => !taken.has(o));
+  if (!partners.length) return null;
+  const o = rng.pick(partners);
+  const a = itemById(id);
+  const b = itemById(o);
+  const big = areaOf(a) >= areaOf(b) ? a : b;
+  const small = big === a ? b : a;
+  const ratio = areaOf(big) / areaOf(small);
+  // on the Mercator map, far-north places look bigger than they are: when that flips the answer it is a trap
+  const trap = small.area_u > big.area_u;
+  let t = ratio > 4 ? 0 : ratio > 2.5 ? 1 : ratio > 1.8 ? 2 : 3;
+  if (trap) t = Math.min(4, t + 2);
+  const options = rng.shuffle([id, o]);
+  return { itemId: big.id, scene: sceneOf(id), type: 'bigger', tier: TIER_ORDER[t], options, answer: options.indexOf(big.id), trap };
+}
+
+// ---------------------------------------------------------------- which one borders X?
+export function bordersPool(topic: Topic): { id: string; tier: Tier }[] {
+  return pool(topic, false).filter((x) => {
+    const b = borderInfo(x.id);
+    return !!b && b.borders.length > 0 && b.far.length >= 3;
+  });
+}
+
+export function makeBorders(id: string, tier: Tier, rng: Rng): Question | null {
+  const info = borderInfo(id);
+  if (!info || !info.borders.length || info.far.length < 3) return null;
+  const right = rng.pick(info.borders);
+  // wrong answers that clearly do not border it, chosen to be tempting: on the same continent, well known, close by
+  // (Chile and Ecuador for Brazil, not Caribbean islands). `far` is ordered nearest first.
+  const subject = itemById(id);
+  const scored = info.far.map((o, i) => {
+    const it = itemById(o);
+    const known = TIER_ORDER.indexOf(it.tier ?? 'very_hard');
+    return { o, k: i * 0.5 + (it.region === subject.region ? 0 : 8) + known * 1.5 + rng.next() * 2 };
+  });
+  const wrong = scored.sort((a, b) => a.k - b.k).slice(0, 3).map((x) => x.o);
+  const options = rng.shuffle([right, ...wrong]);
+  return { itemId: right, scene: sceneOf(id), type: 'borders', tier, options, answer: options.indexOf(right), subjectId: id };
+}
+
+/** Adds `count` bigger/borders questions to qs, never using a place in `taken` (and adding the ones it uses). */
+export function addSpecial(qs: Question[], type: 'bigger' | 'borders', count: number, topic: Topic, mix: TierMix, rng: Rng, prefs: PickPrefs, taken: Set<string>) {
+  if (count <= 0) return;
+  let added = 0;
+  if (type === 'bigger') {
+    const ids = new Set(pool(topic, false).map((x) => x.id));
+    for (const x of pickItems(biggerPool(topic), count * 3, mix, rng, prefs, taken)) {
+      if (added >= count) break;
+      if (taken.has(x.id)) continue;
+      const q = makeBigger(x.id, ids, rng, taken);
+      if (!q) continue;
+      q.options.forEach((o) => taken.add(o));
+      qs.push(q);
+      added++;
+    }
+    return;
+  }
+  for (const x of pickItems(bordersPool(topic), count * 2, mix, rng, prefs, taken)) {
+    if (added >= count) break;
+    const q = makeBorders(x.id, x.tier, rng);
+    if (!q || taken.has(q.itemId)) continue;
+    taken.add(x.id);
+    taken.add(q.itemId);
+    qs.push(q);
+    added++;
+  }
+}
+
 function chooseType(types: Partial<Record<QType, number>>, rng: Rng): QType {
   const entries = Object.entries(types) as [QType, number][];
   let r = rng.next() * entries.reduce((a, [, w]) => a + w, 0);
@@ -168,6 +263,8 @@ export function buildRound(
       qs.push(makeQuestion(x.id, x.tier, 'capital', ids, rng));
     }
   }
+  addSpecial(qs, 'bigger', plan.filter((t) => t === 'bigger').length, topic, mix, rng, prefs, taken);
+  addSpecial(qs, 'borders', plan.filter((t) => t === 'borders').length, topic, mix, rng, prefs, taken);
   const ftypes = plan.filter((t) => t === 'flag' || t === 'name_to_flag');
   if (ftypes.length > 0) {
     const p = pool(topic === 'usa' ? 'world' : topic, true);
@@ -175,6 +272,15 @@ export function buildRound(
     pickItems(p, ftypes.length, mix, rng, prefs, taken).forEach((x, i) => {
       qs.push(makeQuestion(x.id, x.tier, ftypes[i] ?? 'flag', ids, rng));
     });
+  }
+  // a small topic can run out of fair pairs or border questions: fill with map questions
+  if (qs.length < n) {
+    const p = pool(topic, false);
+    const ids = new Set(p.map((x) => x.id));
+    for (const x of pickItems(p, n - qs.length, mix, rng, prefs, taken)) {
+      taken.add(x.id);
+      qs.push(makeQuestion(x.id, x.tier, 'map', ids, rng));
+    }
   }
   const rank = (t: Tier) => TIERS.indexOf(t);
   const keyed = qs.map((q) => ({ q, k: rank(q.tier) + rng.next() * 0.5 }));

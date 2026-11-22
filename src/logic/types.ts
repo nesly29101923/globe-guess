@@ -23,16 +23,19 @@ export type Item = {
 export type Mode = 'first' | 'journey' | 'daily' | 'quick' | 'survival';
 
 /** map: name the highlighted place. flag: name the flag. name_to_flag: pick the flag. capital: name the capital
- *  of the highlighted place. */
-export type QuestionType = 'map' | 'flag' | 'name_to_flag' | 'capital';
+ *  of the highlighted place. bigger: which of two highlighted places is bigger. borders: which option borders the
+ *  highlighted place (`subjectId`). */
+export type QuestionType = 'map' | 'flag' | 'name_to_flag' | 'capital' | 'bigger' | 'borders';
 
 export type Question = {
   itemId: string;
   scene: Scene;
   type: QuestionType;
   tier: Tier;
-  options: string[];      // item ids, in button order
+  options: string[];      // item ids, in button order (two for `bigger`)
   answer: number;         // index into options
+  subjectId?: string;     // `borders`: the highlighted place the answer borders
+  trap?: boolean;         // `bigger`: the map makes the smaller one look bigger
 };
 
 export type QuizDef = {
