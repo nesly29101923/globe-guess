@@ -156,3 +156,17 @@ Every choice made while building without a reviewer, with one line of reasoning.
   (coin, stack, sack, chest) and POPULAR / BEST ribbons; free coins as a card; the starter pack shows its contents as
   icons. **Journey**: circles shrink to fit short phones, page dots show there are more chapters, the marker that
   covered the level above is gone, empty stars visible.
+
+## Round 6: capitals and map zoom
+- **Capital questions** (`type: 'capital'`): the map flies to the place and highlights it, the title asks "Capital of
+  X?", the answers are the capitals of it and its neighbours (same neighbour logic as map questions, so they are
+  plausible). Data is hand-kept in `src/data/capitals.ts` (the generated map data has none): 188 countries and 50
+  states. Left out: places with disputed, split or no official capital (Bolivia, South Africa, Israel, Sri Lanka,
+  Eswatini, Nauru). Difficulty = the place's tier, one harder for classic traps (Canberra, Ottawa, Ankara,
+  Sacramento, Albany ...). A right answer counts for the place's Atlas card.
+- Where capitals appear: Quick Play (World / Europe / US state capitals); mixed into Europe, Americas, Asia,
+  Africa, Oceania, USA 2 and Expert; two new all-capitals chapters at the end of the Journey (new chapters only at the
+  end, so nobody's open chapters change); one question in the Daily Challenge; ~15% of Survival.
+- **Zoom**: pinch (around the fingers), drag while zoomed, double-tap, and a magnifier button for one thumb; up to
+  6x; springs back at each new question. The zoomed view stays inside the camera's framing, so the map never needs
+  land it did not prepare for the question (no extra work, no empty areas).
