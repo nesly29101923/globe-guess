@@ -3,14 +3,15 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, cancelAnimation, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, runOnJS, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { balance } from '../config/balance';
 import { COSMETICS } from '../config/cosmetics';
 import { Press, T, fitSize } from '../components/ui';
 import { Icon, ICONS } from '../components/Icon';
 import { AnswerButton, AnswerPill, ComboBadge, FlagCard, PowerupButton, ProgressDots, TimerRing, TitleCard, answerTextWidth, type ButtonState } from '../components/round';
-import { itemById, itemName } from '../data/gameData';
+import { itemById, itemName, optionLabel } from '../data/gameData';
+import { capitalOf } from '../data/capitals';
 import { haptic } from '../feedback/haptics';
 import { play, playCorrect } from '../feedback/sfx';
 import { t, upper } from '../i18n/strings';
@@ -20,6 +21,8 @@ import type { PowerupId } from '../logic/save';
 import type { Answer, Question, QuizDef } from '../logic/types';
 import { easeInOut, frameItem, needsWrap, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
 import { MapCanvas, type Flight } from '../map/MapCanvas';
+import { useMapZoom } from '../map/useMapZoom';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { warmViews } from '../map/shapes';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
@@ -103,6 +106,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const item = q ? itemById(q.itemId) : null;
   const isFlagQ = q?.type === 'flag';
   const isPickFlag = q?.type === 'name_to_flag';
+  const canZoom = !!q && !isFlagQ && !isPickFlag;
   const scene = q?.scene ?? 'world';
   const topic = scene === 'usa' ? 'usa' : 'all';
 
@@ -111,7 +115,17 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const camFrom = useSharedValue<Cam>(startCam);
   const camTo = useSharedValue<Cam>(startCam);
   const camProgress = useSharedValue(1);
-  const cam = useDerivedValue(() => zoomAt(camFrom.value, camTo.value, easeInOut(camProgress.value), M.zoomCurve));
+  // the game camera; the player's pinch zoom sits on top of it (useMapZoom) and is what the map draws
+  const baseCam = useDerivedValue(() => zoomAt(camFrom.value, camTo.value, easeInOut(camProgress.value), M.zoomCurve));
+  const zoomOn = useSharedValue(false);
+  const { cam, gesture: zoomGesture, reset: resetZoom, toggle: toggleZoom, zoom } = useMapZoom({ base: baseCam, box, H: SH, enabled: zoomOn });
+  const [zoomed, setZoomed] = useState(false);
+  useEffect(() => {
+    zoomOn.value = phase === 'ask' && canZoom;
+  }, [phase, canZoom, zoomOn]);
+  useAnimatedReaction(() => zoom.value > 1.2, (now, before) => {
+    if (now !== before) runOnJS(setZoomed)(now);
+  });
   const moving = useDerivedValue(() => (camProgress.value < 1 ? 1 : 0));
   const reveal = useSharedValue(0);
   const targetAlpha = useSharedValue(0);
@@ -145,7 +159,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
 
 
   const flyTo = useCallback((to: Cam, ms: number, onEnd?: () => void) => {
-    const from = cam.value;
+    const from = baseCam.value;
     const target = unwrapTowards(from, to, scene);
     setWrap(scene === 'world' && needsWrap([from, target, { ...target, w: Math.max(from.w, target.w) * 1.6 }], box, SH));
     camFrom.value = from;
@@ -156,12 +170,14 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     camProgress.value = withTiming(1, { duration: ms, easing: Easing.linear }, (fin) => {
       if (fin && onEnd) runOnJS(onEnd)();
     });
-  }, [cam, camFrom, camTo, camProgress, scene, box, SH]);
+  }, [baseCam, camFrom, camTo, camProgress, scene, box, SH]);
 
   // ---- question start
   useEffect(() => {
     if (!q || !item) return;
     clearAll();
+    zoomOn.value = false;
+    resetZoom();
     setPhase('fly');
     setStates(['idle', 'idle', 'idle', 'idle']);
     setFrozen(false);
@@ -179,7 +195,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
       camProgress.value = 1;
       prevScene.current = scene;
     }
-    const prevCam = cam.value;
+    const prevCam = baseCam.value;
     let to: Cam;
     if (isFlagQ || isPickFlag) {
       to = neutralCam('world');
@@ -486,7 +502,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const answerFonts = useMemo(() => {
     if (!q || isPickFlag) return [0, 1, 2, 3].map(() => ({ size: type.body, lines: 1 }));
     const tw = answerTextWidth(btnW);
-    const names = q.options.map((o) => upper(itemName(o)));
+    const names = q.options.map((o) => upper(optionLabel(o, q.type)));
     // Poppins Bold capitals are about 0.78 em wide (0.7 was too hopeful: KYRGYZSTAN broke mid-word)
     const fits = names.map((n) => fitSize(n, type.body, tw, 12, 0.78));
     // one size for all four (never below 12); names with spaces may wrap to two lines at that size
@@ -494,7 +510,11 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     const lines = Math.min(2, Math.max(...fits.map((f) => f.lines)));
     // a single word is always one line: it can never break mid-word, and if it is still too wide the text
     // shrinks itself to fit (adjustsFontSizeToFit), without touching the other three
-    return names.map((n) => (n.includes(' ') ? { size: common, lines } : { size: common, lines: 1 }));
+    return names.map((n) => {
+      if (n.includes(' ')) return { size: common, lines };
+      const own = Math.floor(tw / (n.length * 0.78));
+      return { size: Math.max(9, Math.min(common, own)), lines: 1 };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q?.itemId, idx, btnW]);
 
@@ -503,7 +523,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
 
   // ---- render
   const results = quiz.mode === 'survival' ? [] : quiz.questions.map((_, i) => (answers[i] ? answers[i].correct : null));
-  const title = scene === 'usa' ? t('q_state') : isFlagQ ? t('q_flag') : isPickFlag ? t('q_pick_flag') : t('q_country');
+  const title = q?.type === 'capital' ? t('q_capital', { name: upper(itemName(q.itemId)) })
+    : scene === 'usa' ? t('q_state') : isFlagQ ? t('q_flag') : isPickFlag ? t('q_pick_flag') : t('q_country');
   const tierChip = quiz.mode === 'daily' ? 'mixed' : quiz.mode === 'survival' ? q?.tier : quiz.tierLabel === 'boss' ? undefined : quiz.tierLabel;
   const offerSecond = phase === 'offer' && quiz.mode !== 'survival';
   const offerContinue = phase === 'offer' && quiz.mode === 'survival' && lives <= 0;
@@ -513,6 +534,12 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
       <MapCanvas width={SW} height={SH} box={box} scene={scene} topic={topic} cam={cam} targetId={q?.itemId ?? null} reveal={reveal}
         targetAlpha={targetAlpha} dim={dim} done={doneHere} wrap={wrap} theme={theme} flight={flight} moving={moving} />
       <Pressable style={StyleSheet.absoluteFill} onPress={skipWait} testID="skip-area" />
+      {/* pinch / drag / double-tap zoom while a map question is open */}
+      {phase === 'ask' && canZoom ? (
+        <GestureDetector gesture={zoomGesture}>
+          <View style={StyleSheet.absoluteFill} testID="zoom-area" />
+        </GestureDetector>
+      ) : null}
 
       {/* header */}
       <View style={[st.col, { top, width: W, left: (SW - W) / 2 }]} pointerEvents="box-none">
@@ -547,7 +574,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
 
       {/* answer pill + combo + score pop */}
       <View style={[st.pillWrap, { top: mapTop + 4 }]} pointerEvents="none">
-        <AnswerPill name={q ? itemName(q.itemId) : ''} correct={answers[idx]?.correct ?? true} visible={phase === 'reveal' && !!answers[idx]} flagId={q && q.scene === 'world' && q.type === 'map' ? q.itemId : undefined} />
+        <AnswerPill name={q ? (q.type === 'capital' ? `${capitalOf(q.itemId) ?? ''} · ${itemName(q.itemId)}` : itemName(q.itemId)) : ''} correct={answers[idx]?.correct ?? true} visible={phase === 'reveal' && !!answers[idx]} flagId={q && q.scene === 'world' && (q.type === 'map' || q.type === 'capital') ? q.itemId : undefined} />
       </View>
       <View style={[st.comboWrap, { top: mapTop + 56, right: (SW - W) / 2 + 52 }]} pointerEvents="none">
         <ComboBadge combo={combo} />
@@ -566,7 +593,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
                 const i = row * 2 + col;
                 return (
                   <View key={col} style={{ width: btnW }}>
-                    <AnswerButton letter={LETTERS[i]} label={itemName(q.options[i])} flagId={isPickFlag ? q.options[i] : undefined}
+                    <AnswerButton letter={LETTERS[i]} label={optionLabel(q.options[i], q.type)} flagId={isPickFlag ? q.options[i] : undefined}
                       state={states[i]} index={i} revealKey={phase === 'fly' ? `${idx}-fly` : `${idx}`} disabled={phase !== 'ask'} skin={buttonStyle}
                       onPress={() => answer(i)} testID={`answer-${i}`} width={btnW} fontSize={answerFonts[i].size} lines={answerFonts[i].lines} />
                   </View>
@@ -578,6 +605,15 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
             {!(globalThis as unknown as { __mapDebug?: Record<string, boolean> }).__mapDebug?.noTimer ? <TimerRing progress={timerP} seconds={seconds} frozen={frozen} /> : null}
           </View>
         </View>
+      ) : null}
+
+      {/* magnifier: zoom on the target with one thumb (pinch and double-tap work too) */}
+      {canZoom && (phase === 'ask' || zoomed) ? (
+        <Press onPress={() => toggleZoom()} style={[st.zoomBtn, { top: gridTop - 58, right: (SW - W) / 2 + 14 }]} testID="zoom" scaleTo={0.88}>
+          <View style={[st.zoomInner, zoomed && { backgroundColor: colors.accent }]}>
+            <Icon name={zoomed ? 'magnify-minus' : 'magnify-plus'} size={26} color={zoomed ? colors.white : colors.accent} />
+          </View>
+        </Press>
       ) : null}
 
       {/* power-ups */}
@@ -636,6 +672,8 @@ const make_st = (colors: Palette) => StyleSheet.create({
   lives: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
   survivalCount: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 10, height: 28 },
   close: { position: 'absolute', zIndex: 5 },
+  zoomBtn: { position: 'absolute', zIndex: 4 },
+  zoomInner: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: 'rgba(15,23,42,0.16)' },
   closeInner: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   flagWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   namePrompt: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 22, paddingVertical: 14, maxWidth: '86%' },
