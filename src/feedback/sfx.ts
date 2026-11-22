@@ -39,7 +39,7 @@ const SOURCES = {
 export type Sfx = keyof typeof SOURCES;
 
 const VOLUME: Partial<Record<Sfx, number>> = { tick: 0.55, tock: 0.55, count: 0.35, whoosh: 0.45, tap: 0.6, pop: 0.5 };
-const POOL: Partial<Record<Sfx, number>> = { coin_0: 3, coin_1: 3, coin_2: 3, count: 3, tap: 2, pop: 4, tick: 2, tock: 2, card: 2 };
+const POOL: Partial<Record<Sfx, number>> = { coin_0: 3, coin_1: 3, coin_2: 3, count: 3, tap: 2, pop: 4, tick: 3, tock: 3, card: 2 };
 
 const players: Partial<Record<Sfx, AudioPlayer[]>> = {};
 const cursor: Partial<Record<Sfx, number>> = {};
@@ -76,12 +76,24 @@ export function play(k: Sfx) {
   cursor[k] = i + 1;
   const p = list[i];
   try {
-    p.seekTo(0);
+    // Each player is rewound right after it plays, so it is already at the start when its turn comes again.
+    // Rewinding just before playing is asynchronous and made the clock ticks late or swallowed.
     p.play();
+    setTimeout(() => {
+      try {
+        p.pause();
+        void p.seekTo(0);
+      } catch {
+        /* ignore */
+      }
+    }, REWIND_AFTER_MS[k] ?? 900);
   } catch {
     /* ignore */
   }
 }
+
+/** When a pooled player is rewound after playing (longer than the sound, shorter than its turn coming round again). */
+const REWIND_AFTER_MS: Partial<Record<Sfx, number>> = { tick: 230, tock: 230, tap: 120, pop: 120, count: 60, coin_0: 220, coin_1: 220, coin_2: 220, card: 320 };
 
 let music: AudioPlayer | null = null;
 /** Light menu music, only when the player turned it on (off by default). */

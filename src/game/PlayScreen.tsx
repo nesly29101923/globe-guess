@@ -20,7 +20,7 @@ import type { PowerupId } from '../logic/save';
 import type { Answer, Question, QuizDef } from '../logic/types';
 import { easeInOut, frameItem, needsWrap, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
 import { MapCanvas, type Flight } from '../map/MapCanvas';
-import { warmScene } from '../map/shapes';
+import { warmViews } from '../map/shapes';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
 import { useGame } from '../store/store';
@@ -65,7 +65,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     return owned || s0.level >= Math.min(balance.powerupTeachAtLevel.fiftyFifty, balance.powerupTeachAtLevel.freeze, balance.powerupTeachAtLevel.skip);
   });
   const bottomPad = Math.max(insets.bottom, 12);
-  const puH = showPowerups ? sizes.big + 14 : 0;
+  const puH = showPowerups ? sizes.big + 18 : 0;
   const gridH = 58 * 2 + 10;
   const gridTop = SH - bottomPad - puH - gridH - 8;
   const mapTop = dotsY + 40;
@@ -96,7 +96,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const askStart = useRef(0);
   const timeLeftAtFreeze = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const survivalUsed = useRef(new Set<string>());
 
   const q: Question | undefined = quiz.questions[idx];
@@ -122,10 +122,14 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const [flight, setFlight] = useState<Flight>({ from: startCam, to: startCam });
   const prevScene = useRef(initialQuiz.questions[0]?.scene ?? 'world');
 
+  // parse the map detail around every question of this round in the background, in small slices
   useEffect(() => {
-    warmScene('world', 'all');
-    if (quiz.questions.some((x) => x.scene === 'usa')) warmScene('usa', 'usa');
-  }, [quiz]);
+    const views = quiz.questions.map((x) => {
+      const it = itemById(x.itemId);
+      return it ? { scene: x.scene, cam: frameItem(it, x.scene, box) } : null;
+    }).filter((v): v is { scene: typeof quiz.questions[number]['scene']; cam: Cam } => !!v);
+    warmViews(views, box, SH);
+  }, [quiz, box, SH]);
 
   const later = (ms: number, f: () => void) => {
     const h = setTimeout(f, ms);
@@ -134,7 +138,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const clearAll = () => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
-    if (tickTimer.current) clearInterval(tickTimer.current);
+    if (tickTimer.current) clearTimeout(tickTimer.current);
     tickTimer.current = null;
   };
   useEffect(() => clearAll, []);
@@ -224,29 +228,29 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     timerP.value = withTiming(0, { duration: ms, easing: Easing.linear });
     const end = Date.now() + ms;
     timerEnd.current = end;
-    let lastBeat = 0;
-    let lastShown = -1;
-    let beatN = 0;
-    if (tickTimer.current) clearInterval(tickTimer.current);
-    tickTimer.current = setInterval(() => {
+    // The clock is scheduled on its own beats, not polled: a tick exactly when the number changes (10, 9, 8 ...),
+    // and in the last seconds a tock half-way between. Each timeout aims at the next beat from the true end time,
+    // so a late timer never pushes the following beats back.
+    if (tickTimer.current) clearTimeout(tickTimer.current);
+    const fastAt = balance.round.tickTockFastAt * 1000;
+    const beat = () => {
       const left = end - Date.now();
-      const sec = Math.ceil(left / 1000);
-      if (sec !== lastShown) {
-        lastShown = sec;
-        setSecondsLeft(sec);
-      }
-      const fast = left <= balance.round.tickTockFastAt * 1000;
-      const every = fast ? 250 : 500;
-      if (Date.now() - lastBeat >= every) {
-        lastBeat = Date.now();
-        play(beatN++ % 2 ? 'tock' : 'tick');
-      }
-      if (left <= 0) {
-        if (tickTimer.current) clearInterval(tickTimer.current);
+      if (left <= 30) {
         tickTimer.current = null;
+        setSecondsLeft(0);
         answer(null);
+        return;
       }
-    }, 100);
+      const sec = Math.ceil(left / 1000);
+      setSecondsLeft(sec);
+      // sound only on a beat (after a pause or freeze the first call can fall between beats)
+      if (Math.abs(left - Math.round(left / 1000) * 1000) < 120) play('tick');
+      else if (left <= fastAt + 120 && Math.abs(left - Math.round(left / 500) * 500) < 120) play('tock');
+      const step = left - 20 <= fastAt ? 500 : 1000;
+      const next = Math.floor((left - 20) / step) * step; // the time left at the next beat
+      tickTimer.current = setTimeout(beat, Math.max(16, end - next - Date.now()));
+    };
+    beat();
   };
 
   const [paused, setPaused] = useState(false);
@@ -271,7 +275,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   };
 
   const stopTimer = () => {
-    if (tickTimer.current) clearInterval(tickTimer.current);
+    if (tickTimer.current) clearTimeout(tickTimer.current);
     tickTimer.current = null;
     cancelAnimation(timerP);
   };
