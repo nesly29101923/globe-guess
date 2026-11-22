@@ -187,3 +187,66 @@ export function warmScene(scene: Scene, topic: Topic | 'all') {
   scopePaths(scene, topic, 2);
   if (scene === 'world') graticulePath();
 }
+
+// ---------------------------------------------------------------- background warm-up
+// Parsing a country's SVG path is the expensive step (the fine world file is 1.25 MB). Done on the spot, the first
+// flight over a region parsed dozens of countries in one frame and the game froze for a moment. Instead the work is
+// queued and done in slices of a few milliseconds between frames, before it is needed.
+
+type Job = () => void;
+const queue: Job[] = [];
+let running = false;
+const SLICE_MS = 4;
+
+function pump() {
+  const t0 = Date.now();
+  while (queue.length && Date.now() - t0 < SLICE_MS) queue.shift()!();
+  if (queue.length) setTimeout(pump, 0);
+  else running = false;
+}
+
+function enqueue(jobs: Job[], front = false) {
+  if (front) queue.unshift(...jobs);
+  else queue.push(...jobs);
+  if (!running) {
+    running = true;
+    setTimeout(pump, 0);
+  }
+}
+
+/** At app start: the coarse world and US maps, used by every screen with a map. */
+export function warmAllIdle() {
+  const jobs: Job[] = [];
+  for (const c of COUNTRIES) jobs.push(() => void itemPath('world', c.id, 2));
+  jobs.push(() => scopePaths('world', 'all', 2));
+  jobs.push(() => void graticulePath());
+  for (const s of STATES) jobs.push(() => void itemPath('usa', s.id, 2));
+  const bg = Object.keys(file('usa').background ?? {});
+  for (const id of bg) jobs.push(() => void itemPath('usa', id, 2));
+  jobs.push(() => scopePaths('usa', 'usa', 2));
+  enqueue(jobs);
+}
+
+/** Before a round: fine and medium detail around each question's target, nearest question first. */
+export function warmViews(views: { scene: Scene; cam: Cam }[], box: Box, H: number) {
+  const jobs: Job[] = [];
+  const seen = new Set<string>();
+  for (const v of views) {
+    const usa = v.scene === 'usa';
+    const all = usa ? STATES : COUNTRIES;
+    const r = viewRect(v.cam, box, H);
+    const m = 0.6 * (r[2] - r[0]);
+    const rect: Rect4 = [r[0] - m, r[1] - m, r[2] + m, r[3] + m];
+    const wrap = usa ? 0 : 2 * Math.PI * 100;
+    for (const x of all) {
+      if (!hits(x.bbox, rect, wrap)) continue;
+      for (const lod of usa ? [0] : [0, 1]) {
+        const k = `${v.scene}:${x.id}:${lod}`;
+        if (seen.has(k) || pathCache.has(k)) continue;
+        seen.add(k);
+        jobs.push(() => void itemPath(v.scene, x.id, lod as Lod));
+      }
+    }
+  }
+  enqueue(jobs, true);
+}

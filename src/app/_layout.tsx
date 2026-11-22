@@ -18,6 +18,7 @@ import { remoteConfig } from '../services/remoteConfig';
 import { flushSave, useGame } from '../store/store';
 import { fontFiles } from '../theme';
 import { iconFont } from '../components/Icon';
+import { warmAllIdle } from '../map/shapes';
 import { colors, darkColors } from '../theme';
 import { ThemeProvider, useResolvedDark } from '../theme/usePalette';
 import { FpsMeter } from '../components/FpsMeter';
@@ -51,7 +52,10 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && ready) SplashScreen.hideAsync().catch(() => {});
+    if ((fontsLoaded || fontError) && ready) {
+      SplashScreen.hideAsync().catch(() => {});
+      warmAllIdle(); // map shapes parse in the background, a few ms at a time
+    }
   }, [fontsLoaded, fontError, ready]);
 
   if ((!fontsLoaded && !fontError) || !ready) return <View style={{ flex: 1, backgroundColor: pal.bg }} />;
