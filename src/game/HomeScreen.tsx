@@ -208,111 +208,141 @@ export function HomeScreen() {
 
       {/* chapter + PLAY + the other places to go */}
       <View style={[st.bottom, { bottom: insets.bottom + 12, width: W }]} pointerEvents="box-none">
-        <View style={[st.playCard, shadow.card]}>
-          <View style={st.chapterRow}>
-            <View style={st.chapterIcon}><Icon name={ch.icon as IconName} size={24} color={colors.accent} /></View>
-            <View style={{ flex: 1, gap: 5 }}>
-              <View style={st.rowBetween}>
-                <T size={type.heading} weight="black" lines={1} style={{ flexShrink: 1 }}>{t(`chapter_${ch.id}` as never)}</T>
-                <View style={st.miniStats}>
-                  {balance.hearts.enabled && hearts.count < balance.hearts.max ? (
-                    <>
-                      <Icon name="heart" size={15} color={colors.heart} />
-                      <T size={type.label} weight="black">{String(hearts.count)}</T>
-                      <View style={{ width: 6 }} />
-                    </>
-                  ) : null}
-                  <Icon name="star" size={15} color={colors.gold} />
-                  <T size={type.label} weight="black">{`${chStars.have}/${chStars.max}`}</T>
-                </View>
+        {/* the chapter as a ribbon over the map, then the one big PLAY */}
+        <View style={st.ribbonWrap} pointerEvents="box-none">
+          <Press onPress={() => router.push('/journey')} scaleTo={0.95} testID="home-chapter">
+            <View style={st.ribbon}>
+              <View style={st.ribbonIcon}><Icon name={ch.icon as IconName} size={22} color={colors.accent} /></View>
+              <T size={type.heading} weight="black" color={colors.white} lines={1} style={{ flexShrink: 1 }}>{t(`chapter_${ch.id}` as never)}</T>
+              <View style={st.ribbonStars}>
+                <Icon name="star" size={16} color={colors.gold} />
+                <T size={type.label} weight="black" color={colors.white}>{`${chStars.have}/${chStars.max}`}</T>
+                {balance.hearts.enabled && hearts.count < balance.hearts.max ? (
+                  <>
+                    <Icon name="heart" size={16} color="#F87171" style={{ marginLeft: 6 }} />
+                    <T size={type.label} weight="black" color={colors.white}>{String(hearts.count)}</T>
+                  </>
+                ) : null}
               </View>
-              <ProgressBar value={chStars.have / chStars.max} color={colors.gold} height={6} />
             </View>
-          </View>
-          <BigButton label={`${t('play')} · ${t('level_short', { n: lv.index + 1 })}`} icon={lv.boss ? 'crown' : 'play'} onPress={playJourney} breathe={focused && !sheet} testID="home-play" />
-          <T size={type.label} weight="bold" color={colors.accent} center lines={1}>{goalText}</T>
+          </Press>
         </View>
+        <BigButton label={`${t('play')} · ${t('level_short', { n: lv.index + 1 })}`} icon={lv.boss ? 'crown' : 'play'} onPress={playJourney} breathe={focused && !sheet} testID="home-play" height={76} />
+        <View style={st.goalPill}><Icon name="flag-checkered" size={15} color={colors.accent} /><T size={type.label} weight="black" color={colors.accent} lines={1} style={{ flexShrink: 1 }}>{goalText}</T></View>
         <View style={st.dock}>
-          <DockButton icon="map-marker-path" label={t('journey')} onPress={() => router.push('/journey')} testID="home-journey" />
-          {modesOn ? <DockButton icon="lightning-bolt" label={t('modes')} onPress={() => setSheet('modes')} testID="home-modes" /> : null}
-          {shopOn ? <DockButton icon="store" label={t('shop')} onPress={() => router.push('/shop')} testID="home-shop" /> : null}
+          <DockButton icon="map-marker-path" color="#7C3AED" label={t('journey')} onPress={() => router.push('/journey')} testID="home-journey" />
+          {modesOn ? <DockButton icon="gamepad-variant" color="#F59E0B" label={t('modes')} onPress={() => setSheet('modes')} testID="home-modes" /> : null}
+          {shopOn ? <DockButton icon="store" color="#16A34A" label={t('shop')} onPress={() => router.push('/shop')} testID="home-shop" /> : null}
         </View>
       </View>
 
-      {/* Today: a checklist of what resets every day */}
+      {/* Today: what resets every day, shown as things to tap, not text to read */}
       {sheet === 'today' ? (
         <Sheet onClose={() => setSheet(null)} testID="today-sheet">
           <SheetTitle title={streak > 0 ? t('streak_day', { n: streak }) : t('today')} icon={<Icon name="fire" size={28} color={streak > 0 ? colors.flame : colors.inkSoft} />} onClose={() => setSheet(null)} />
-          <T size={type.label} weight="bold" color={atRisk ? colors.flame : colors.inkSoft}>
-            {streak > 0 && save.streak.lastDay === today ? t('streak_tomorrow') : t('streak_today')}
-            {save.streak.freezes > 0 ? ` · ${t('streak_freezes', { n: save.streak.freezes })}` : ''}
-          </T>
-          {repairable ? (
-            <Row icon="fire" color={colors.wrong} title={t('streak_broken', { n: save.streak.broken?.count ?? 0 })}>
-              <SmallButton label={save.coins >= balance.daily.streakRepairCoins ? String(balance.daily.streakRepairCoins) : t('streak_repair')}
-                iconNode={save.coins >= balance.daily.streakRepairCoins ? <Coin size={18} /> : <Icon name="play-circle" size={18} color={colors.white} />}
-                color={colors.flame} textColor={colors.white} onPress={onRepair} testID="home-repair" />
-            </Row>
+          {atRisk || repairable ? (
+            <View style={st.alert}>
+              <Icon name="fire-alert" size={20} color={colors.flame} />
+              <T size={type.label} weight="black" color={colors.flame} style={{ flex: 1 }} lines={1}>{repairable ? t('streak_broken', { n: save.streak.broken?.count ?? 0 }) : t('streak_today')}</T>
+              {repairable ? (
+                <SmallButton label={save.coins >= balance.daily.streakRepairCoins ? String(balance.daily.streakRepairCoins) : t('streak_repair')}
+                  iconNode={save.coins >= balance.daily.streakRepairCoins ? <Coin size={16} /> : <Icon name="play-circle" size={16} color={colors.white} />}
+                  color={colors.flame} textColor={colors.white} onPress={onRepair} testID="home-repair" style={{ height: 36 }} />
+              ) : null}
+            </View>
           ) : null}
 
-          <Row icon="gift" color={colors.wrong} title={t('login_title')} sub={
-            <View style={st.pips}>
-              {cal.map((_, i) => {
-                const done = i < loginIdx || (!loginClaimable && save.login.lastDay === today && i === (loginIdx + cal.length - 1) % cal.length);
-                return <View key={i} style={[st.pip, done ? { backgroundColor: colors.correct } : loginClaimable && i === loginIdx ? { backgroundColor: colors.gold } : null, i === cal.length - 1 && st.pipLast]} />;
-              })}
-              <T size={type.caption} weight="bold" color={colors.inkSoft}>{t('login_day', { n: Math.min(cal.length, loginIdx + (loginClaimable ? 1 : 0)) || 1 })}</T>
+          {/* 7 days: today glows and is tapped to claim */}
+          <View style={st.days}>
+            {cal.map((c, i) => {
+              const last = i === cal.length - 1;
+              const claimedToday = !loginClaimable && save.login.lastDay === today;
+              const done = i < loginIdx || (claimedToday && i === (loginIdx + cal.length - 1) % cal.length);
+              const now = loginClaimable && i === loginIdx;
+              return (
+                <Press key={i} onPress={onLogin} disabled={!now} scaleTo={0.9} style={last ? { flex: 1.6 } : { flex: 1 }} testID={now ? 'login-claim' : undefined}>
+                  <Wiggle on={now}>
+                    <View style={[st.day, now && st.dayNow, done && st.dayDone]}>
+                      {done ? <Icon name="check-bold" size={20} color={colors.correct} />
+                        : last ? <Icon name="treasure-chest" size={28} color={colors.goldDark} />
+                        : <Coin size={20} />}
+                      <T size={10} weight="black" color={now ? colors.white : colors.inkSoft}>{last ? t('day_n', { n: 7 }) : fmt(c)}</T>
+                    </View>
+                  </Wiggle>
+                </Press>
+              );
+            })}
+          </View>
+
+          {/* Daily Challenge: one tile, one button */}
+          <View style={[st.challenge, dailyDone && { backgroundColor: colors.correctSoft }]}>
+            <Icon name={dailyDone ? 'calendar-check' : 'calendar-star'} size={34} color={dailyDone ? colors.correct : colors.white} />
+            <View style={{ flex: 1 }}>
+              <T size={type.heading} weight="black" color={dailyDone ? colors.ink : colors.white} lines={1}>{t('daily_challenge')}</T>
+              {dailyDone ? <Countdown ms={msToMidnight(now)} render={(time) => `${save.daily.results[today]?.correct ?? 0}/10 · ${time}`} /> : null}
             </View>
-          }>
-            {loginClaimable
-              ? <SmallButton label={`+${fmt(cal[loginIdx])}`} iconNode={<Coin size={18} />} color={colors.correct} textColor={colors.white} onPress={onLogin} testID="login-claim" />
-              : <Icon name="check-circle" size={26} color={colors.correct} />}
-          </Row>
+            {!dailyUnlocked ? <View style={st.lockTag}><Icon name="lock" size={16} color={colors.white} /><T size={type.label} weight="black" color={colors.white}>{t('lv_short', { n: balance.unlocks.dailyChallenge })}</T></View>
+              : dailyDone ? <Icon name="check-circle" size={30} color={colors.correct} />
+              : <Press onPress={playDaily} testID="daily-play" scaleTo={0.9}><View style={st.playRound}><Icon name="play" size={28} color={colors.accent} /></View></Press>}
+          </View>
 
-          <Row icon="calendar-star" color={colors.accent} title={t('daily_challenge')}
-            sub={!dailyUnlocked ? t('daily_locked', { n: balance.unlocks.dailyChallenge }) : dailyDone ? <Countdown ms={msToMidnight(now)} render={(time) => `${save.daily.results[today]?.correct ?? 0}/10 · ${t('daily_done', { time })}`} /> : t('daily_challenge_desc')}>
-            {!dailyUnlocked ? <Icon name="lock" size={22} color={colors.inkSoft} />
-              : dailyDone ? <Icon name="check-circle" size={26} color={colors.correct} />
-              : <SmallButton label={t('play_short')} icon="play" color={colors.accent} textColor={colors.white} onPress={playDaily} testID="daily-play" />}
-          </Row>
-
+          {/* missions: three tiles, icon + count + reward; tap a full one to claim */}
           {missionsOn ? (
-            <View style={st.missions}>
-              <View style={st.rowBetween}>
-                <T size={type.label} weight="black" color={colors.inkSoft}>{t('missions').toUpperCase()}</T>
-                <Countdown ms={msToMidnight(now)} render={(time) => time} />
-              </View>
+            <View style={st.missionTiles}>
               {save.missions.list.map((m, i) => {
                 const ready = !m.claimed && m.progress >= m.target;
+                const def = MISSION_ICONS[m.id] ?? { icon: 'check-circle' as IconName, color: colors.accent };
                 return (
-                  <View key={m.id} style={st.missionRow}>
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <T size={type.label} weight="bold" lines={1}>{t(`mission_${m.id}` as never, { n: m.target })}</T>
-                      <ProgressBar value={m.progress / m.target} color={m.progress >= m.target ? colors.correct : colors.gold} height={6} />
-                    </View>
-                    {m.claimed ? <View style={st.missionRight}><Icon name="check-circle" size={22} color={colors.correct} /></View>
-                      : ready ? <SmallButton label={`+${balance.daily.missionCoins}`} iconNode={<Coin size={16} />} color={colors.correct} textColor={colors.white} onPress={() => onClaimMission(m.id, SH * 0.5 + i * 50)} testID={`mission-claim-${i}`} style={st.missionRight} />
-                      : <View style={st.missionRight}><T size={type.label} weight="black" color={colors.inkSoft}>{`${Math.min(m.progress, m.target)}/${m.target}`}</T></View>}
-                  </View>
+                  <Press key={m.id} onPress={() => ready && onClaimMission(m.id, SH * 0.6)} disabled={!ready} style={{ flex: 1 }} scaleTo={0.92} testID={`mission-claim-${i}`}>
+                    <Wiggle on={ready}>
+                      <View style={[st.mission, ready && st.missionReady, m.claimed && st.missionDone]}>
+                        <Icon name={m.claimed ? 'check-circle' : def.icon} size={30} color={ready ? colors.white : m.claimed ? colors.correct : def.color} />
+                        <T size={type.heading} weight="black" color={ready ? colors.white : colors.ink}>{`${Math.min(m.progress, m.target)}/${m.target}`}</T>
+                        <T size={10} weight="bold" color={ready ? colors.white : colors.inkSoft} center lines={1}>{t(`ms_${m.id}` as never)}</T>
+                        <View style={st.missionBar}><ProgressBar value={m.progress / m.target} color={ready ? colors.white : colors.gold} height={5} /></View>
+                        <View style={[st.missionReward, ready && { backgroundColor: colors.white }]}>
+                          <Coin size={14} />
+                          <T size={type.caption} weight="black" color={colors.goldDark}>{ready ? t('claim') : String(balance.daily.missionCoins)}</T>
+                        </View>
+                      </View>
+                    </Wiggle>
+                  </Press>
                 );
               })}
-              {canClaimMissionChest(save) ? <SmallButton label={t('all_missions_chest')} icon="treasure-chest" color={colors.gold} textColor={colors.white} onPress={onMissionChest} testID="mission-chest" /> : null}
             </View>
           ) : null}
+          {missionsOn && canClaimMissionChest(save) ? <SmallButton label={t('chest_open')} icon="treasure-chest" color={colors.gold} textColor={colors.white} onPress={onMissionChest} testID="mission-chest" /> : null}
         </Sheet>
       ) : null}
 
-      {/* Modes */}
+      {/* Modes: two picture tiles, tap one to play */}
       {sheet === 'modes' ? (
         <Sheet onClose={() => setSheet(null)} testID="modes-sheet">
-          <SheetTitle title={t('modes')} icon={<Icon name="lightning-bolt" size={26} color={colors.gold} />} onClose={() => setSheet(null)} />
-          <Row icon="lightning-bolt" color={colors.gold} title={t('quick_play')} sub={t('quick_desc')}>
-            <SmallButton label={t('play_short')} icon="play" color={colors.accent} textColor={colors.white} onPress={() => { setSheet(null); router.push('/quick'); }} testID="home-quick" />
-          </Row>
-          <Row icon="skull" color={colors.ink} title={t('survival')} sub={save.level < balance.unlocks.survival ? t('daily_locked', { n: balance.unlocks.survival }) : save.stats.survivalBest ? `${t('survival_desc')} · ${t('best')} ${save.stats.survivalBest}` : t('survival_desc')}>
-            {save.level < balance.unlocks.survival ? <Icon name="lock" size={22} color={colors.inkSoft} />
-              : <SmallButton label={t('play_short')} icon="play" color={colors.accent} textColor={colors.white} onPress={() => { setSheet(null); router.push({ pathname: '/play', params: { mode: 'survival', nonce: String(Date.now()) } }); }} testID="home-survival" />}
-          </Row>
+          <SheetTitle title={t('modes')} icon={<Icon name="gamepad-variant" size={26} color={colors.accent} />} onClose={() => setSheet(null)} />
+          <View style={st.modeRow}>
+            <Press onPress={() => { setSheet(null); router.push('/quick'); }} style={{ flex: 1 }} scaleTo={0.94} testID="home-quick">
+              <View style={[st.modeTile, { backgroundColor: '#F59E0B' }]}>
+                <View style={st.modeIcon}><Icon name="lightning-bolt" size={44} color="#F59E0B" /></View>
+                <T size={type.heading} weight="black" color={colors.white} center>{t('quick_play')}</T>
+                <View style={st.modeFacts}><Icon name="earth" size={16} color={colors.white} /><Icon name="flag" size={16} color={colors.white} /><Icon name="flag-variant" size={16} color={colors.white} /></View>
+              </View>
+            </Press>
+            <Press onPress={() => { setSheet(null); router.push({ pathname: '/play', params: { mode: 'survival', nonce: String(Date.now()) } }); }}
+              disabled={save.level < balance.unlocks.survival} style={{ flex: 1 }} scaleTo={0.94} testID="home-survival">
+              <View style={[st.modeTile, { backgroundColor: save.level < balance.unlocks.survival ? colors.disabled : '#334155' }]}>
+                <View style={st.modeIcon}><Icon name={save.level < balance.unlocks.survival ? 'lock' : 'skull'} size={44} color="#334155" /></View>
+                <T size={type.heading} weight="black" color={colors.white} center>{t('survival')}</T>
+                {save.level < balance.unlocks.survival ? (
+                  <T size={type.label} weight="black" color={colors.white}>{t('lv_short', { n: balance.unlocks.survival })}</T>
+                ) : (
+                  <View style={st.modeFacts}>
+                    {[0, 1, 2].map((i) => <Icon key={i} name="heart" size={16} color="#F87171" />)}
+                    {save.stats.survivalBest ? <><Icon name="trophy" size={16} color="#FCD34D" /><T size={type.label} weight="black" color={colors.white}>{String(save.stats.survivalBest)}</T></> : null}
+                  </View>
+                )}
+              </View>
+            </Press>
+          </View>
         </Sheet>
       ) : null}
 
@@ -385,18 +415,42 @@ function Countdown({ ms, render }: { ms: number; render: (time: string) => strin
   return <T size={type.label} weight="bold" color={colors.inkSoft}>{render(fmtTime(Math.max(0, end - Date.now())))}</T>;
 }
 
-function DockButton({ icon, label, onPress, testID }: { icon: IconName; label: string; onPress: () => void; testID?: string }) {
-  const colors = usePalette();
+/** A colourful square tile with a big icon and its name under it, like the buttons of a game lobby. */
+function DockButton({ icon, color, label, onPress, testID }: { icon: IconName; color: string; label: string; onPress: () => void; testID?: string }) {
   const st = useStyles(make_st);
   return (
-    <Press onPress={onPress} style={{ flex: 1 }} testID={testID} scaleTo={0.94}>
-      <View style={[st.dockBtn, shadow.soft]}>
-        <Icon name={icon} size={22} color={colors.accent} />
-        <T size={type.label} weight="black" lines={1}>{label}</T>
+    <Press onPress={onPress} style={{ flex: 1 }} testID={testID} scaleTo={0.92}>
+      <View style={[st.dockBtn, { backgroundColor: color }]}>
+        <Icon name={icon} size={30} color="#FFFFFF" />
+        <T size={type.label} weight="black" color="#FFFFFF" lines={1}>{label}</T>
       </View>
     </Press>
   );
 }
+
+/** A short shake every two seconds: "this one is ready". Only while it is on screen. */
+function Wiggle({ on, children }: { on: boolean; children: React.ReactNode }) {
+  const r = useSharedValue(0);
+  useEffect(() => {
+    r.value = on ? withRepeat(withSequence(withTiming(-1, { duration: 80 }), withTiming(1, { duration: 80 }), withTiming(-1, { duration: 80 }), withTiming(0, { duration: 80 }), withTiming(0, { duration: 1700 })), -1) : withTiming(0);
+  }, [on, r]);
+  const a = useAnimatedStyle(() => ({ transform: [{ rotate: `${r.value * 6}deg` }] }));
+  return <Animated.View style={a}>{children}</Animated.View>;
+}
+
+const MISSION_ICONS: Record<string, { icon: IconName; color: string }> = {
+  correct_answers: { icon: 'check-circle', color: '#16A34A' },
+  correct_answers_big: { icon: 'check-decagram', color: '#16A34A' },
+  play_rounds: { icon: 'play-circle', color: '#7C3AED' },
+  three_stars: { icon: 'star', color: '#F59E0B' },
+  combo: { icon: 'fire', color: '#F97316' },
+  discover: { icon: 'book-open-variant', color: '#7C3AED' },
+  flags_right: { icon: 'flag', color: '#EF4444' },
+  daily_challenge: { icon: 'calendar-star', color: '#7C3AED' },
+  journey_levels: { icon: 'map-marker-path', color: '#7C3AED' },
+  quick_rounds: { icon: 'lightning-bolt', color: '#F59E0B' },
+  survival_correct: { icon: 'skull', color: '#334155' },
+};
 
 /** A slow flicker for the streak flame. Runs only while home is on screen. */
 function Flicker({ on, children }: { on: boolean; children: React.ReactNode }) {
@@ -418,13 +472,35 @@ const make_st = (colors: Palette) => StyleSheet.create({
   railValue: { marginTop: -2, lineHeight: 15 },
   railLabel: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 8, height: 18, justifyContent: 'center' },
   bottom: { position: 'absolute', paddingHorizontal: 12, gap: 10 },
-  playCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 14, gap: 12 },
+  ribbonWrap: { alignItems: 'center' },
+  ribbon: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.accentDark, borderRadius: radius.pill, paddingLeft: 5, paddingRight: 16, height: 48, maxWidth: '100%', borderBottomWidth: 4, borderBottomColor: 'rgba(15,23,42,0.3)' },
+  ribbonIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  ribbonStars: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  goalPill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 12, height: 30, maxWidth: '100%' },
   chapterRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   chapterIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   miniStats: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   dock: { flexDirection: 'row', gap: 10 },
-  dockBtn: { height: sizes.dock - 6, borderRadius: radius.lg, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  dockBtn: { height: 72, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: 2, borderBottomWidth: 5, borderBottomColor: 'rgba(15,23,42,0.25)' },
+  alert: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.goldSoft, borderRadius: radius.md, paddingHorizontal: 10, minHeight: 44 },
+  days: { flexDirection: 'row', gap: 5 },
+  day: { height: 64, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  dayNow: { backgroundColor: colors.gold, borderBottomWidth: 4, borderBottomColor: colors.goldDark },
+  dayDone: { backgroundColor: colors.correctSoft },
+  challenge: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.accent, borderRadius: radius.lg, paddingHorizontal: 14, height: 70, borderBottomWidth: 4, borderBottomColor: 'rgba(15,23,42,0.22)' },
+  playRound: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  lockTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  missionTiles: { flexDirection: 'row', gap: 8 },
+  mission: { borderRadius: radius.lg, backgroundColor: colors.chip, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 6, gap: 3 },
+  missionReady: { backgroundColor: colors.correct, borderBottomWidth: 4, borderBottomColor: 'rgba(15,23,42,0.22)' },
+  missionDone: { opacity: 0.6 },
+  missionBar: { alignSelf: 'stretch', paddingHorizontal: 4 },
+  missionReward: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.surface, borderRadius: 99, paddingHorizontal: 8, height: 22, marginTop: 2 },
+  modeRow: { flexDirection: 'row', gap: 10 },
+  modeTile: { borderRadius: radius.xl, alignItems: 'center', paddingVertical: 18, gap: 8, borderBottomWidth: 5, borderBottomColor: 'rgba(15,23,42,0.25)' },
+  modeIcon: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  modeFacts: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
   rowIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   pips: { flexDirection: 'row', alignItems: 'center', gap: 4 },

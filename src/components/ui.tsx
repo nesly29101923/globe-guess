@@ -127,9 +127,9 @@ export function Chip({ label, bg, color, style }: { label: string; bg?: string; 
 }
 
 /** The one primary action per screen: big, accent, breathing slowly when idle. */
-export function BigButton({ label, onPress, color = colors.accent, textColor = colors.white, breathe, icon, sub, disabled, testID, style }: {
+export function BigButton({ label, onPress, color = colors.accent, textColor = colors.white, breathe, icon, sub, disabled, testID, style, height }: {
   label: string; onPress: () => void; color?: string; textColor?: string; breathe?: boolean; icon?: IconName; sub?: string;
-  disabled?: boolean; testID?: string; style?: StyleProp<ViewStyle>;
+  disabled?: boolean; testID?: string; style?: StyleProp<ViewStyle>; height?: number;
 }) {
   const colors = usePalette();
   const styles = useStyles(make_styles);
@@ -142,10 +142,10 @@ export function BigButton({ label, onPress, color = colors.accent, textColor = c
   return (
     <Animated.View style={[a, style]}>
       <Press onPress={onPress} disabled={disabled} testID={testID}>
-        <View style={[styles.big, { backgroundColor: disabled ? colors.disabled : color }, shadow.card]}>
+        <View style={[styles.big, { backgroundColor: disabled ? colors.disabled : color }, height ? { height, borderRadius: height / 2.4 } : null, shadow.card]}>
           <View style={styles.bigInner}>
-            {icon ? <Icon name={icon} size={24} color={textColor} /> : null}
-            <T size={type.title} weight="black" color={textColor} lines={1} shrink>{label}</T>
+            {icon ? <Icon name={icon} size={height ? 30 : 24} color={textColor} /> : null}
+            <T size={height ? type.title + 6 : type.title} weight="black" color={textColor} lines={1} shrink>{label}</T>
           </View>
           {sub ? <T size={type.caption} weight="semi" color={textColor} style={{ opacity: 0.85 }}>{sub}</T> : null}
         </View>

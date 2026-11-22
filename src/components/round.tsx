@@ -270,6 +270,9 @@ export function FlagCard({ flagId, small, width }: { flagId: string; small: Shar
 
 // ---------------------------------------------------------------- power-up button
 
+/** Power-up colours: each one is recognised by colour before its icon is read. */
+const PU_COLORS: Partial<Record<string, string>> = { 'circle-half-full': '#8B5CF6', snowflake: '#0EA5E9', 'skip-next': '#F59E0B', 'backup-restore': '#16A34A' };
+
 export function PowerupButton({ icon, label, count, onPress, disabled, highlight, free, testID }: {
   icon: IconName; label: string; count: number; onPress: () => void; disabled?: boolean; highlight?: boolean; free?: boolean; testID?: string;
 }) {
@@ -283,11 +286,11 @@ export function PowerupButton({ icon, label, count, onPress, disabled, highlight
   return (
     <Animated.View style={a}>
       <Press onPress={onPress} disabled={disabled} sound="powerup" testID={testID}>
-        <View style={[st.pu, shadow.soft, highlight && st.puHot, disabled && { opacity: 0.4 }]}>
-          <Icon name={icon} size={24} color={colors.accent} />
-          <T size={type.caption} weight="bold" color={colors.inkSoft} lines={1}>{label}</T>
-          <View style={[st.puCount, { backgroundColor: free ? colors.correct : count > 0 ? colors.accent : colors.gold }]}>
-            {free || count > 0 ? <T size={type.caption} weight="black" color={colors.white}>{free ? t('free') : String(count)}</T> : <Icon name="plus-thick" size={12} color={colors.white} />}
+        {/* a round coloured button per power-up: the colour and icon say what it is, the badge how many */}
+        <View style={[st.pu, { backgroundColor: PU_COLORS[icon] ?? colors.accent }, highlight && st.puHot, disabled && { opacity: 0.45 }]} accessibilityLabel={label}>
+          <Icon name={icon} size={30} color="#FFFFFF" />
+          <View style={[st.puCount, { backgroundColor: free ? colors.correct : colors.ink }]}>
+            <T size={type.caption} weight="black" color={colors.white}>{free ? t('free') : String(count)}</T>
           </View>
         </View>
       </Press>
@@ -317,9 +320,9 @@ const make_st = (colors: Palette) => StyleSheet.create({
   pillIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   pillFlag: { width: 34, height: 25, borderRadius: 4 },
   flagCard: { backgroundColor: colors.surface, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
-  pu: { width: 76, height: sizes.big, borderRadius: radius.lg, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 1 },
-  puHot: { borderWidth: 2.5, borderColor: colors.correct },
-  puCount: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
+  pu: { width: sizes.big, height: sizes.big, borderRadius: sizes.big / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#FFFFFF', borderBottomWidth: 6, borderBottomColor: 'rgba(15,23,42,0.28)' },
+  puHot: { borderColor: colors.correct, borderBottomColor: colors.correct },
+  puCount: { position: 'absolute', top: -6, right: -8, minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
 });
 
 export { fonts };
