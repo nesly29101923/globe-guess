@@ -21,6 +21,12 @@ export const COSMETICS: Cosmetic[] = [
   { id: 'btn_bubble', kind: 'button', price: null, source: 'level' },
   { id: 'btn_ink', kind: 'button', price: 1500 },
   { id: 'btn_gold', kind: 'button', price: 3000 },
+  { id: 'btn_mint', kind: 'button', price: 2000 },
+  { id: 'btn_candy', kind: 'button', price: 3500 },
+  { id: 'btn_ocean', kind: 'button', price: 4500 },
+  { id: 'btn_sunset', kind: 'button', price: 5500 },
+  { id: 'btn_neon', kind: 'button', price: 7000 },
+  { id: 'btn_royal', kind: 'button', price: 9000 },
 ];
 
 /** Button styles: how answer buttons look. Same layout, different skin. */
@@ -29,6 +35,12 @@ export const BUTTON_STYLES: Record<string, { bg: string; text: string; badgeBg: 
   btn_bubble: { bg: '#F5F3FF', text: '#4C1D95', badgeBg: '#7C3AED', badgeText: '#FFFFFF', border: '#DDD6FE' },
   btn_ink: { bg: '#0F172A', text: '#FFFFFF', badgeBg: '#334155', badgeText: '#C4B5FD' },
   btn_gold: { bg: '#FFFBEB', text: '#78350F', badgeBg: '#F59E0B', badgeText: '#FFFFFF', border: '#FCD34D' },
+  btn_mint: { bg: '#ECFDF5', text: '#065F46', badgeBg: '#10B981', badgeText: '#FFFFFF', border: '#A7F3D0' },
+  btn_candy: { bg: '#FDF2F8', text: '#9D174D', badgeBg: '#EC4899', badgeText: '#FFFFFF', border: '#FBCFE8' },
+  btn_ocean: { bg: '#0369A1', text: '#FFFFFF', badgeBg: '#38BDF8', badgeText: '#0C4A6E' },
+  btn_sunset: { bg: '#FFEDD5', text: '#9A3412', badgeBg: '#F97316', badgeText: '#FFFFFF', border: '#FDBA74' },
+  btn_neon: { bg: '#18181B', text: '#A3E635', badgeBg: '#A3E635', badgeText: '#18181B', border: '#A3E635' },
+  btn_royal: { bg: '#4C1D95', text: '#FDE68A', badgeBg: '#FBBF24', badgeText: '#4C1D95', border: '#FBBF24' },
 };
 
 export type Product = {

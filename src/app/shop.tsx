@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { balance } from '../config/balance';
-import { BUTTON_STYLES, COSMETICS, PRODUCTS, type Product } from '../config/cosmetics';
+import { BUTTON_STYLES, COSMETICS, PRODUCTS, STARTER, type Product } from '../config/cosmetics';
 import { fx } from '../components/fx';
 import { CoinPill, ScreenHeader } from '../components/hud';
 import { Coin, Icon, type IconName } from '../components/Icon';
@@ -142,24 +142,22 @@ export default function ShopScreen() {
       </View>
       <ScrollView style={{ flex: 1, width: W }} contentContainerStyle={{ padding: 12, gap: 12, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {tab === 'items' ? (
-          <Section>
-            {ITEMS.map((it) => {
+          <View style={st.grid}>
+            {ITEMS.map((it, i) => {
               const owned = it.id === 'streakFreeze' ? `${save.streak.freezes}/${balance.daily.streakFreezeMax}` : it.id === 'heartRefill' ? '' : `×${save.powerups[it.id as keyof typeof save.powerups]}`;
               return (
-                <View key={it.id} style={st.itemRow}>
-                  <View style={st.itemIcon}><Icon name={it.icon} size={26} color={it.color} /></View>
-                  <View style={{ flex: 1 }}>
-                    <View style={st.inline}>
-                      <T size={type.body} weight="black">{t(it.label as never)}</T>
-                      {owned ? <View style={st.ownedTag}><T size={type.caption} weight="black" color={colors.accent}>{owned}</T></View> : null}
-                    </View>
-                    <T size={type.caption} weight="semi" color={colors.inkSoft} lines={2}>{t(it.desc as never, { n: balance.daily.streakFreezeMax })}</T>
+                <PopIn key={it.id} delay={i * 30} style={st.cell}>
+                  <View style={[st.card, shadow.soft]}>
+                    {owned ? <View style={st.ownedTag}><T size={type.label} weight="black" color={colors.white}>{owned}</T></View> : null}
+                    <View style={[st.bigIcon, { backgroundColor: it.color }]}><Icon name={it.icon} size={34} color="#FFFFFF" /></View>
+                    <T size={type.body} weight="black" center lines={1}>{t(it.label as never)}</T>
+                    <T size={type.caption} weight="semi" color={colors.inkSoft} center lines={2} style={{ minHeight: 28 }}>{t(it.desc as never, { n: balance.daily.streakFreezeMax })}</T>
+                    <CoinButton price={priceOf(it.id)} affordable={save.coins >= priceOf(it.id)} onPress={() => buyItem(it.id)} testID={`buy-${it.id}`} />
                   </View>
-                  <CoinButton price={priceOf(it.id)} affordable={save.coins >= priceOf(it.id)} onPress={() => buyItem(it.id)} testID={`buy-${it.id}`} />
-                </View>
+                </PopIn>
               );
             })}
-          </Section>
+          </View>
         ) : null}
 
         {tab === 'maps' ? (
@@ -211,54 +209,58 @@ export default function ShopScreen() {
             {starter ? (
               <PopIn style={[st.starter, shadow.card]}>
                 <View style={st.rowBetween}>
-                  <View style={st.inline}><Icon name="gift" size={24} color={colors.white} /><T size={type.title} weight="black" color={colors.white}>{t('starter_pack')}</T></View>
+                  <View style={st.inline}><Icon name="gift" size={26} color={colors.white} /><T size={type.title} weight="black" color={colors.white}>{t('starter_pack')}</T></View>
                   <View style={st.tag}><T size={type.caption} weight="black" color={colors.accent}>{upper(t('one_time'))}</T></View>
                 </View>
-                <T size={type.label} weight="semi" color={colors.white}>{t('starter_desc')}</T>
+                {/* what is inside, as things you can see */}
+                <View style={st.contents}>
+                  <Content icon={<Coin size={30} />} label={fmt(STARTER.coins)} />
+                  <Content icon={<Icon name="circle-half-full" size={30} color="#8B5CF6" />} label={`×${STARTER.powerupsEach}`} />
+                  <Content icon={<Icon name="snowflake" size={30} color="#0EA5E9" />} label={`×${STARTER.powerupsEach}`} />
+                  <Content icon={<Icon name="skip-next" size={30} color="#F59E0B" />} label={`×${STARTER.powerupsEach}`} />
+                  <Content icon={<View style={[st.miniMap, { backgroundColor: mapThemes.neon.seaTop }]}><View style={[st.miniLand, { backgroundColor: mapThemes.neon.land }]} /></View>} label={t('theme_neon')} />
+                  <Content icon={<Icon name="cancel" size={30} color={colors.wrong} />} label={t('no_ads_days', { n: STARTER.removeAdsDays })} />
+                </View>
                 <BuyButton label={prices.starter_pack ?? '$1.99'} onPress={() => buyProduct(PRODUCTS.find((x) => x.id === 'starter_pack')!)} busy={busy === 'starter_pack'} light testID="buy-starter" />
               </PopIn>
             ) : null}
-            <Section>
+            <View style={st.grid}>
               {!session.firstSession ? (
-                <View style={st.itemRow}>
-                  <View style={[st.itemIcon, { backgroundColor: colors.goldSoft }]}><Icon name="play-circle" size={28} color={colors.gold} /></View>
-                  <View style={{ flex: 1 }}>
-                    <View style={st.inline}><T size={type.heading} weight="black">{t('free_coins')}</T><Coin size={16} /><T size={type.heading} weight="black" color={colors.goldDark}>{`+${balance.ads.rewardedFreeCoins}`}</T></View>
-                    <T size={type.caption} weight="semi" color={colors.inkSoft} lines={2}>{freeLeft > 0 ? t('free_coins_row', { n: freeLeft }) : t('free_coins_none')}</T>
+                <View style={st.cell}>
+                  <View style={[st.card, st.freeCard, shadow.soft]}>
+                    <View style={st.art}><Icon name="play-circle" size={52} color={colors.gold} /></View>
+                    <View style={st.inline}><Coin size={18} /><T size={type.title} weight="black">{`+${balance.ads.rewardedFreeCoins}`}</T></View>
+                    <T size={type.caption} weight="bold" color={colors.inkSoft}>{freeLeft > 0 ? t('free_coins_left', { n: freeLeft, max: balance.ads.rewardedFreeCoinsPerDay }) : t('free_coins_none')}</T>
+                    <Press onPress={onFreeCoins} disabled={freeLeft <= 0 || !ads.rewardedReady()} testID="shop-free-coins" style={{ alignSelf: 'stretch' }}>
+                      <View style={[st.buy, { backgroundColor: freeLeft > 0 && ads.rewardedReady() ? colors.gold : colors.chip }]}>
+                        <Icon name="play" size={18} color={freeLeft > 0 && ads.rewardedReady() ? colors.white : colors.inkSoft} />
+                        <T size={type.body} weight="black" color={freeLeft > 0 && ads.rewardedReady() ? colors.white : colors.inkSoft}>{t('free_short')}</T>
+                      </View>
+                    </Press>
                   </View>
-                  <Press onPress={onFreeCoins} disabled={freeLeft <= 0 || !ads.rewardedReady()} testID="shop-free-coins">
-                    <View style={[st.buy, { backgroundColor: freeLeft > 0 && ads.rewardedReady() ? colors.gold : colors.chip }]}>
-                      <T size={type.body} weight="black" color={freeLeft > 0 && ads.rewardedReady() ? colors.white : colors.inkSoft}>{t('watch_short')}</T>
-                    </View>
-                  </Press>
                 </View>
               ) : null}
               {coinPacks.map((p, i) => (
-                <View key={p.id} style={st.itemRow}>
-                  <View style={[st.itemIcon, { backgroundColor: colors.goldSoft }]}>
-                    {i === 0 ? <Coin size={26} /> : <Icon name={p.id === 'coins_xl' ? 'treasure-chest' : p.id === 'coins_l' ? 'sack' : 'cash-multiple'} size={28} color={colors.goldDark} />}
+                <PopIn key={p.id} delay={i * 40} style={st.cell}>
+                  <View style={[st.card, shadow.soft, p.tag === 'best' && st.bestCard]}>
+                    {p.tag ? <View style={[st.ribbon, { backgroundColor: p.tag === 'best' ? colors.flame : colors.accent }]}><T size={type.caption} weight="black" color={colors.white}>{p.tag === 'best' ? t('best_tag') : t('popular_tag')}</T></View> : null}
+                    <View style={st.art}><CoinArt tier={i + 1} /></View>
+                    <View style={st.inline}><Coin size={18} /><T size={type.title} weight="black">{fmt(p.coins ?? 0)}</T></View>
+                    <T size={type.caption} weight="black" color={colors.correct} style={{ opacity: p.bonus ? 1 : 0 }}>{t('bonus', { n: p.bonus ?? 0 })}</T>
+                    <BuyButton label={prices[p.id] ?? p.price} onPress={() => buyProduct(p)} busy={busy === p.id} testID={`buy-${p.id}`} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={st.inline}><Coin size={16} /><T size={type.heading} weight="black">{fmt(p.coins ?? 0)}</T></View>
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      {p.bonus ? <T size={type.caption} weight="black" color={colors.correct}>{t('bonus', { n: p.bonus })}</T> : null}
-                      {p.tag ? <T size={type.caption} weight="black" color={colors.accent}>{p.tag === 'popular' ? t('most_popular') : t('best_value')}</T> : null}
-                    </View>
-                  </View>
-                  <BuyButton label={prices[p.id] ?? p.price} onPress={() => buyProduct(p)} busy={busy === p.id} testID={`buy-${p.id}`} />
-                </View>
+                </PopIn>
               ))}
-              {!save.ads.removed ? (
+            </View>
+            {!save.ads.removed ? (
+              <View style={[st.section, shadow.soft]}>
                 <View style={st.itemRow}>
-                  <View style={st.itemIcon}><Icon name="cancel" size={26} color={colors.wrong} /></View>
-                  <View style={{ flex: 1 }}>
-                    <T size={type.body} weight="black">{t('remove_ads')}</T>
-                    <T size={type.caption} weight="semi" color={colors.inkSoft} lines={2}>{t('remove_ads_desc')}</T>
-                  </View>
+                  <View style={[st.bigIcon, { backgroundColor: colors.wrong, width: 52, height: 52 }]}><Icon name="cancel" size={28} color="#FFFFFF" /></View>
+                  <T size={type.heading} weight="black" style={{ flex: 1 }}>{t('remove_ads')}</T>
                   <BuyButton label={prices.remove_ads ?? '$3.99'} onPress={() => buyProduct(PRODUCTS.find((x) => x.id === 'remove_ads')!)} busy={busy === 'remove_ads'} testID="buy-remove-ads" />
                 </View>
-              ) : null}
-            </Section>
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -278,17 +280,44 @@ function PriceTag({ inUse, owned, price, lockText }: { inUse: boolean; owned: bo
   return <View style={st.inline}><Coin size={14} /><T size={type.caption} weight="black" color={colors.goldDark}>{fmt(price)}</T></View>;
 }
 
-function Section({ children }: { children: React.ReactNode }) {
+function Content({ icon, label }: { icon: React.ReactNode; label: string }) {
   const st = useStyles(make_st);
-  return <PopIn style={[st.section, shadow.soft]}>{children}</PopIn>;
+  return (
+    <View style={st.content}>
+      <View style={st.contentIcon}>{icon}</View>
+      <T size={type.caption} weight="black" color="#FFFFFF" lines={1}>{label}</T>
+    </View>
+  );
+}
+
+/** Coin pack art that grows with the pack: one coin, a stack, a pile, a sack, a chest full. */
+function CoinArt({ tier }: { tier: number }) {
+  const colors = usePalette();
+  const coin = (x: number, y: number, s: number, k: number) => <Coin key={k} size={s} style={{ position: 'absolute', left: x, top: y }} />;
+  if (tier <= 1) return <View style={{ width: 64, height: 64 }}>{coin(14, 14, 36, 0)}</View>;
+  if (tier === 2) return <View style={{ width: 64, height: 64 }}>{[[4, 26], [26, 26], [15, 8]].map(([x, y], k) => coin(x, y, 32, k))}</View>;
+  if (tier === 3) {
+    return (
+      <View style={{ width: 72, height: 64 }}>
+        <Icon name="sack" size={62} color={colors.goldDark} style={{ position: 'absolute', left: 5, top: 0 }} />
+        {[[0, 38], [44, 40], [22, 44]].map(([x, y], k) => coin(x, y, 24, k))}
+      </View>
+    );
+  }
+  return (
+    <View style={{ width: 80, height: 64 }}>
+      <Icon name="treasure-chest" size={68} color="#B45309" style={{ position: 'absolute', left: 6, top: -2 }} />
+      {[[0, 40], [56, 38], [20, 46], [38, 46], [28, 2], [10, 10], [48, 8]].slice(0, tier === 4 ? 4 : 7).map(([x, y], k) => coin(x, y, 22, k))}
+    </View>
+  );
 }
 
 function CoinButton({ price, affordable, onPress, testID }: { price: number; affordable: boolean; onPress: () => void; testID?: string }) {
   const colors = usePalette();
   const st = useStyles(make_st);
   return (
-    <Press onPress={onPress} testID={testID} sound={affordable ? 'coin_0' : 'tap'}>
-      <View style={[st.buy, { backgroundColor: affordable ? colors.gold : colors.chip }]}>
+    <Press onPress={onPress} testID={testID} sound={affordable ? 'coin_0' : 'tap'} style={{ alignSelf: 'stretch' }}>
+      <View style={[st.buy, st.buyWide, { backgroundColor: affordable ? colors.gold : colors.chip }]}>
         <Coin size={18} />
         <T size={type.body} weight="black" color={affordable ? colors.white : colors.inkSoft}>{fmt(price)}</T>
       </View>
@@ -300,8 +329,8 @@ function BuyButton({ label, onPress, busy, light, testID }: { label: string; onP
   const colors = usePalette();
   const st = useStyles(make_st);
   return (
-    <Press onPress={onPress} disabled={busy} testID={testID}>
-      <View style={[st.buy, { backgroundColor: light ? colors.white : colors.correct, minWidth: 86 }]}>
+    <Press onPress={onPress} disabled={busy} testID={testID} style={{ alignSelf: 'stretch' }}>
+      <View style={[st.buy, { backgroundColor: light ? colors.white : colors.correct, minWidth: 96 }]}>
         <T size={type.body} weight="black" color={light ? colors.accent : colors.white}>{busy ? '…' : label}</T>
       </View>
     </Press>
@@ -315,10 +344,24 @@ const make_st = (colors: Palette) => StyleSheet.create({
   tab: { height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 1 },
   tabOn: { backgroundColor: colors.accent },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ownedTag: { backgroundColor: colors.accentSoft, borderRadius: 99, paddingHorizontal: 7, height: 20, justifyContent: 'center' },
+  ownedTag: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.ink, borderRadius: 99, paddingHorizontal: 8, height: 24, justifyContent: 'center', zIndex: 2 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  cell: { width: '48%', flexGrow: 1 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 12, alignItems: 'center', gap: 6 },
+  bestCard: { borderWidth: 3, borderColor: colors.flame },
+  freeCard: { backgroundColor: colors.goldSoft },
+  bigIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 4, borderBottomColor: 'rgba(15,23,42,0.22)' },
+  art: { height: 68, alignItems: 'center', justifyContent: 'center' },
+  ribbon: { position: 'absolute', top: -10, borderRadius: 99, paddingHorizontal: 10, height: 22, justifyContent: 'center', zIndex: 2 },
+  buyWide: { alignSelf: 'stretch' },
+  contents: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
+  content: { width: '31%', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: radius.md, paddingVertical: 8 },
+  contentIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  miniMap: { width: 30, height: 22, borderRadius: 5, overflow: 'hidden' },
+  miniLand: { position: 'absolute', left: 5, top: 5, width: 16, height: 10, borderRadius: 3 },
   btnCell: { width: '48%', flexGrow: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  starter: { backgroundColor: colors.accent, borderRadius: radius.xl, padding: 16, gap: 8 },
+  starter: { backgroundColor: colors.accent, borderRadius: radius.xl, padding: 14, gap: 12 },
   tag: { backgroundColor: colors.surface, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 },
   section: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 14, gap: 14 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50 },

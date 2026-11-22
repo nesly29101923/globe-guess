@@ -165,18 +165,22 @@ function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, ac
   const levels = LEVELS.filter((l) => l.chapter === c.id);
   const W = Math.min(width, layout.maxWidth);
   const cardH = 76;
-  const pathTop = cardH + 24;
-  const pathH = height - pathTop - 8;
+  const pathTop = cardH + 24 + 14; // chapter card, page dots
+  // each level needs its circle plus the stars under it; the circles shrink on short phones so the bottom level
+  // and its stars stay above the PLAY button
+  const STARS = 16;
+  const pathH = height - pathTop - 22;
   const rowH = pathH / levels.length;
-  const pathW = W - 48 - NODE;
-  const pos = levels.map((_, i) => ({ x: 24 + XS[i % XS.length] * pathW, y: pathTop + pathH - (i + 1) * rowH + (rowH - NODE) / 2 }));
+  const node = Math.max(38, Math.min(NODE, Math.round(rowH * 1.55 - STARS)));
+  const pathW = W - 48 - node;
+  const pos = levels.map((_, i) => ({ x: 24 + XS[i % XS.length] * pathW, y: pathTop + pathH - (i + 1) * rowH + Math.max(0, (rowH - node - STARS) / 2) }));
   return (
     <View style={{ width, height, alignItems: 'center' }}>
       <View style={{ width: W, height }}>
         {/* chapter card with arrows to the neighbours */}
         <View style={[st.chapter, shadow.soft, { width: W - 24, height: cardH }, !lock.open && st.lockedCard]}>
           <Press onPress={onPrev} disabled={ci === 0} testID={`chapter-prev-${ci}`}>
-            <View style={[st.arrow, ci === 0 && { opacity: 0.25 }]}><Icon name="chevron-left" size={26} color={colors.ink} /></View>
+            <View style={[st.arrow, ci === 0 && { opacity: 0.2 }]}><Icon name="chevron-left-circle" size={30} color={colors.accent} /></View>
           </Press>
           <View style={st.chapterIcon}><Icon name={lock.open ? (c.icon as IconName) : 'lock'} size={26} color={lock.open ? colors.accent : colors.inkSoft} /></View>
           <View style={{ flex: 1, gap: 2 }}>
@@ -189,19 +193,23 @@ function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, ac
             </View>
           </View>
           <Press onPress={onNext} disabled={ci === CHAPTERS.length - 1} testID={`chapter-next-${ci}`}>
-            <View style={[st.arrow, ci === CHAPTERS.length - 1 && { opacity: 0.25 }]}><Icon name="chevron-right" size={26} color={colors.ink} /></View>
+            <View style={[st.arrow, ci === CHAPTERS.length - 1 && { opacity: 0.2 }]}><Icon name="chevron-right-circle" size={30} color={colors.accent} /></View>
           </Press>
+        </View>
+        {/* page dots: there are more chapters to the sides */}
+        <View style={[st.pageDots, { top: cardH + 18 }]} pointerEvents="none">
+          {CHAPTERS.map((_, i) => <View key={i} style={[st.pageDot, i === ci && st.pageDotOn]} />)}
         </View>
         {/* path */}
         {pos.map((p, i) => {
           const n = pos[i + 1];
           if (!n) return null;
           const done = (save.journey.stars[levels[i].id] ?? 0) > 0;
-          return <Segment key={`s${i}`} x1={p.x + NODE / 2} y1={p.y + NODE / 2} x2={n.x + NODE / 2} y2={n.y + NODE / 2} done={done} />;
+          return <Segment key={`s${i}`} x1={p.x + node / 2} y1={p.y + node / 2} x2={n.x + node / 2} y2={n.y + node / 2} done={done} />;
         })}
         {levels.map((l, i) => (
-          <View key={l.id} style={[st.nodeWrap, { left: pos[i].x, top: pos[i].y }]}>
-            <Node level={l} stars={save.journey.stars[l.id] ?? 0} open={isLevelOpen(save, l)} current={l.id === cur.id} active={active} onPress={() => onStart(l)} />
+          <View key={l.id} style={[st.nodeWrap, { left: pos[i].x, top: pos[i].y, width: node }]}>
+            <Node size={node} level={l} stars={save.journey.stars[l.id] ?? 0} open={isLevelOpen(save, l)} current={l.id === cur.id} active={active} onPress={() => onStart(l)} />
           </View>
         ))}
       </View>
@@ -209,7 +217,7 @@ function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, ac
   );
 }
 
-function Node({ level, stars, open, current, active, onPress }: { level: LevelDef; stars: number; open: boolean; current: boolean; active: boolean; onPress: () => void }) {
+function Node({ size: base, level, stars, open, current, active, onPress }: { size: number; level: LevelDef; stars: number; open: boolean; current: boolean; active: boolean; onPress: () => void }) {
   const colors = usePalette();
   const st = useStyles(make_st);
   const p = useSharedValue(1);
@@ -218,18 +226,17 @@ function Node({ level, stars, open, current, active, onPress }: { level: LevelDe
   }, [current, active, p]);
   const a = useAnimatedStyle(() => ({ transform: [{ scale: p.value }] }));
   const bg = !open ? colors.disabled : stars > 0 ? (level.boss ? colors.gold : colors.correct) : colors.accent;
-  const size = level.boss ? NODE + 8 : NODE;
+  const size = level.boss ? base + 6 : base;
   return (
     <Animated.View style={[{ alignItems: 'center' }, a]}>
       <Press onPress={onPress} disabled={!open} testID={`node-${level.id}`}>
-        <View style={[st.node, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg, marginLeft: level.boss ? -4 : 0 }, shadow.card, current && st.current]}>
-          {level.boss ? <Icon name="crown" size={28} color={colors.white} /> : open ? <T size={type.title} weight="black" color={colors.white}>{String(level.index + 1)}</T> : <Icon name="lock" size={20} color={colors.white} />}
+        <View style={[st.node, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg, marginLeft: level.boss ? -3 : 0 }, shadow.card, current && st.current]}>
+          {level.boss ? <Icon name="crown" size={Math.round(size * 0.48)} color={colors.white} /> : open ? <T size={Math.round(size * 0.38)} weight="black" color={colors.white}>{String(level.index + 1)}</T> : <Icon name="lock" size={Math.round(size * 0.36)} color={colors.white} />}
         </View>
       </Press>
       <View style={st.nodeStars}>
-        {[1, 2, 3].map((i) => <Icon key={i} name="star" size={13} color={i <= stars ? colors.gold : 'rgba(15,23,42,0.18)'} />)}
+        {[1, 2, 3].map((i) => <Icon key={i} name="star" size={14} color={i <= stars ? colors.gold : colors.disabled} />)}
       </View>
-      {current ? <View style={st.marker}><Icon name="map-marker" size={26} color={colors.wrong} /></View> : null}
       {level.boss && stars === 0 ? <View style={st.chestTag}><Icon name="treasure-chest" size={22} color={colors.goldDark} /></View> : null}
     </Animated.View>
   );
@@ -254,7 +261,10 @@ const make_st = (colors: Palette) => StyleSheet.create({
   arrow: { width: 36, height: 56, alignItems: 'center', justifyContent: 'center' },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   lockedCard: { opacity: 0.85 },
-  nodeWrap: { position: 'absolute', width: NODE, alignItems: 'center' },
+  nodeWrap: { position: 'absolute', alignItems: 'center' },
+  pageDots: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  pageDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(15,23,42,0.18)' },
+  pageDotOn: { width: 20, backgroundColor: colors.accent },
   node: { alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.white },
   current: { borderColor: colors.gold, borderBottomColor: colors.gold },
   nodeStars: { flexDirection: 'row', justifyContent: 'center', marginTop: 1 },
