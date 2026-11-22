@@ -31,6 +31,9 @@ type Props = {
   moving: { readonly value: number }; // 1 while the camera moves
   flight: Flight;                    // the current camera move: detail is built for what it shows
   targetId: string | null;
+  target2Id?: string | null;          // a second place: the other side of a size question, or the neighbour shown on a reveal
+  t2Alpha?: { readonly value: number };
+  t2Reveal?: { readonly value: number }; // 0 orange, 1 green
   reveal: SharedValue<number>;      // 0 question (purple), 1 answered (green)
   targetAlpha: SharedValue<number>; // fade-in of the target
   dim: SharedValue<number>;         // veil while a flag is the question
@@ -42,12 +45,15 @@ type Props = {
 
 const DBG = (globalThis as unknown as { __mapDebug?: Record<string, boolean> }).__mapDebug ?? {};
 const SAMPLING = { filter: FilterMode.Linear, mipmap: MipmapMode.None };
+/** The second place of a size question: orange, so it never looks like the purple target or the green answer. */
+export const SECOND = { fill: '#F97316', edge: '#C2410C' };
 
 function MapCanvasImpl(p: Props) {
   const { fx, fy, W } = p.box;
   const lods = useMemo(() => flightPaths(p.scene, p.topic, p.flight.from, p.flight.to, p.box, p.height), [p.scene, p.topic, p.flight, p.box, p.height]);
   const grat = useMemo(() => (p.scene === 'world' ? graticulePath() : null), [p.scene]);
   const target = useMemo(() => (p.targetId ? itemPath(p.scene, p.targetId) : null), [p.scene, p.targetId]);
+  const target2 = useMemo(() => (p.target2Id ? itemPath(p.scene, p.target2Id) : null), [p.scene, p.target2Id]);
   const doneP = useMemo(() => [donePath(p.scene, p.done, 0), donePath(p.scene, p.done, 1), donePath(p.scene, p.done, 2)], [p.scene, p.done]);
   const item = p.targetId ? itemById(p.targetId) : null;
   const label = item ? item.label : [0, 0];
@@ -56,7 +62,7 @@ function MapCanvasImpl(p: Props) {
 
   // the glow: blurred once at the size the target is shown at, then only its opacity pulses
   const glow = useMemo(() => {
-    if (!target || !item) return null;
+    if (!target || !item || p.target2Id) return null; // two places: no glow, so neither one stands out
     const unitAtRest = frameItem(item, p.scene, p.box).w / W; // map units per dp when the target is framed
     return glowImage(target, M.glowBlur * unitAtRest, 0.5 / unitAtRest);
   }, [target, item, p.scene, p.box, W]);
@@ -89,6 +95,11 @@ function MapCanvasImpl(p: Props) {
   const gratW = useDerivedValue(() => 0.8 * unit.value);
   const fillC = useDerivedValue(() => interpolateColors(p.reveal.value, [0, 1], [th.target, th.correct]));
   const edgeC = useDerivedValue(() => interpolateColors(p.reveal.value, [0, 1], [th.targetEdge, th.correctEdge]));
+  const zero = useSharedValue(0);
+  const t2a = p.t2Alpha ?? zero;
+  const t2r = p.t2Reveal ?? zero;
+  const fill2 = useDerivedValue(() => interpolateColors(t2r.value, [0, 1], [SECOND.fill, th.correct]));
+  const edge2 = useDerivedValue(() => interpolateColors(t2r.value, [0, 1], [SECOND.edge, th.correctEdge]));
   // the glow canvas is drawn once; the pulse is the layer's opacity, which costs no redraw
   const glowOpacity = useDerivedValue(() => p.targetAlpha.value * 0.85 * (1 - 0.6 * p.reveal.value));
   const pulseStyle = useAnimatedStyle(() => ({ opacity: p.pulse === false ? 0.7 : 0.45 + 0.55 * pulse.value }));
@@ -162,6 +173,13 @@ function MapCanvasImpl(p: Props) {
       {/* 3. the target itself and the veil behind flag questions: redraws only on fade-in and reveal */}
       <Canvas style={style} pointerEvents="none">
         <Group transform={camT}>
+          {target2 &&
+            copies.map((dx) => (
+              <Group key={`s${dx}`} transform={[{ translateX: dx }]} opacity={t2a}>
+                <Path path={target2} color={fill2} />
+                <Path path={target2} color={edge2} style="stroke" strokeWidth={targetEdgeW} />
+              </Group>
+            ))}
           {target &&
             copies.map((dx) => (
               <Group key={`t${dx}`} transform={[{ translateX: dx }]} opacity={p.targetAlpha}>

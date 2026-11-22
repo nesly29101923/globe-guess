@@ -115,10 +115,11 @@ export function answerTextWidth(w: number): number {
 }
 
 export function AnswerButton({
-  letter, label, flagId, state, onPress, index, disabled, skin = 'btn_classic', revealKey, testID, width = 140, fontSize, lines,
+  letter, label, flagId, state, onPress, index, disabled, skin = 'btn_classic', revealKey, testID, width = 140, fontSize, lines, badgeColor,
 }: {
   letter: string; label: string; flagId?: string; state: ButtonState; onPress: () => void; index: number; disabled: boolean;
   skin?: string; revealKey: string; testID?: string; width?: number; fontSize?: number; lines?: number;
+  badgeColor?: string; // a size question: the badge has the colour of its place on the map
 }) {
   const colors = usePalette();
   const st = useStyles(make_st);
@@ -169,9 +170,9 @@ export function AnswerButton({
     <Animated.View style={[st.answerWrap, a]}>
       <Press onPress={onPress} disabled={disabled || state === 'removed'} sound={null} scaleTo={0.94} testID={testID}>
         <Animated.View style={[st.answer, shadow.card, sk.border ? { borderWidth: 2, borderColor: sk.border } : null, bgA]}>
-          <View style={[st.letter, { backgroundColor: isRight || isWrong ? 'rgba(255,255,255,0.25)' : sk.badgeBg }]}>
+          <View style={[st.letter, { backgroundColor: isRight || isWrong ? 'rgba(255,255,255,0.25)' : badgeColor ?? sk.badgeBg }]}>
             {isRight ? <Icon name="check-bold" size={16} color={colors.white} /> : isWrong ? <Icon name="close-thick" size={16} color={colors.white} />
-              : <T size={type.label} weight="black" color={sk.badgeText}>{letter}</T>}
+              : <T size={type.label} weight="black" color={badgeColor ? colors.white : sk.badgeText}>{letter}</T>}
           </View>
           {flagId ? (
             <View style={st.flagSlot}>
