@@ -1,7 +1,7 @@
 // Daily systems that are not the streak: login calendar, missions, Daily Challenge generation.
 import { balance } from '../config/balance';
 import { DAILY_RECIPE, TIER_MIX } from '../config/levels';
-import { pool } from '../data/gameData';
+import { pool, capitalPool } from '../data/gameData';
 import { makeQuestion, pickItems } from './picker';
 import { makeRng } from './rng';
 import type { MissionState, SaveState } from './save';
@@ -126,11 +126,14 @@ export function claimMissionChest(s: SaveState): { state: SaveState; coins: numb
 export function dailyQuestions(day: string): Question[] {
   const rng = makeRng(`daily:${day}`);
   const qs: Question[] = [];
+  const taken = new Set<string>();
   for (const part of DAILY_RECIPE) {
-    const flags = part.type !== 'map';
-    const p = pool(part.topic, flags);
+    const p = part.type === 'capital' ? capitalPool(part.topic) : pool(part.topic, part.type !== 'map');
     const ids = new Set(p.map((x) => x.id));
-    for (const x of pickItems(p, part.count, TIER_MIX.mixed, rng)) qs.push(makeQuestion(x.id, x.tier, part.type, ids, rng));
+    for (const x of pickItems(p, part.count, TIER_MIX.mixed, rng, {}, taken)) {
+      taken.add(x.id);
+      qs.push(makeQuestion(x.id, x.tier, part.type, ids, rng));
+    }
   }
   const tiers = ['very_easy', 'easy', 'medium', 'hard', 'very_hard'];
   return qs.map((q) => ({ q, k: tiers.indexOf(q.tier) + rng.next() * 0.9 })).sort((a, b) => a.k - b.k).map((x) => x.q);

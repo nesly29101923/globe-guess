@@ -16,6 +16,7 @@ const TIERS = ['very_easy', 'easy', 'medium', 'hard', 'very_hard', 'mixed'];
 const ICONS: Record<string, IconName> = {
   world_map: 'earth', usa_map: 'flag-variant', world_flags: 'flag', europe_map: 'castle', asia_map: 'temple-buddhist', africa_map: 'elephant',
   americas_map: 'earth', oceania_map: 'palm-tree', europe_flags: 'flag-outline', pick_flag: 'flag-checkered',
+  world_capitals: 'city-variant', europe_capitals: 'city', usa_capitals: 'bank',
 };
 
 export default function QuickScreen() {
@@ -29,7 +30,8 @@ export default function QuickScreen() {
   const [tier, setTier] = useState('mixed');
   // the topic grid takes the height that is left, so the screen fits any phone
   const fixed = insets.top + 8 + sizes.hud + 10 + 22 + 22 + 2 * 44 + 8 + 14 * 3 + sizes.big + insets.bottom + 24;
-  const tileH = Math.max(46, Math.min(64, (SH - fixed) / 5 - 8));
+  const rows = Math.ceil(QUICK_TOPICS.length / 2);
+  const tileH = Math.max(40, Math.min(64, (SH - fixed) / rows - 8));
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
       <View style={[st.top, { paddingTop: insets.top + 8, width: W }]}>

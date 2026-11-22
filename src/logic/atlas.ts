@@ -11,7 +11,7 @@ export function cardKey(kind: CardKind, id: string): string {
 
 export function cardKindFor(type: QuestionType, id: string): CardKind {
   if (id.startsWith('US-')) return 'state';
-  return type === 'map' ? 'country' : 'flag';
+  return type === 'map' || type === 'capital' ? 'country' : 'flag';
 }
 
 export function masteryOf(days: number): Mastery {

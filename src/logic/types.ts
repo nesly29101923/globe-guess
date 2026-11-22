@@ -22,7 +22,9 @@ export type Item = {
 
 export type Mode = 'first' | 'journey' | 'daily' | 'quick' | 'survival';
 
-export type QuestionType = 'map' | 'flag' | 'name_to_flag';
+/** map: name the highlighted place. flag: name the flag. name_to_flag: pick the flag. capital: name the capital
+ *  of the highlighted place. */
+export type QuestionType = 'map' | 'flag' | 'name_to_flag' | 'capital';
 
 export type Question = {
   itemId: string;

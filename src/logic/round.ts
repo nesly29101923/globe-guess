@@ -195,7 +195,7 @@ export function finishRound(s0: SaveState, inp: FinishInput): { state: SaveState
   };
   const st = onRoundFinished(s, inp.day);
   s = st.state;
-  const flagsCorrect = ans.filter((a) => a.correct && a.type !== 'map').length;
+  const flagsCorrect = ans.filter((a) => a.correct && (a.type === 'flag' || a.type === 'name_to_flag')).length;
   const mp = progressMissions(s, { mode: inp.mode, correct: realCorrect, flagsCorrect, stars, maxCombo, newCards, levelPassed: isJourney && !failed });
   s = mp.state;
 

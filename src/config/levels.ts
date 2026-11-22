@@ -2,7 +2,7 @@
 import type { Tier } from '../logic/types';
 
 export type Topic = 'world' | 'europe' | 'asia' | 'africa' | 'americas' | 'oceania' | 'usa';
-export type QType = 'map' | 'flag' | 'name_to_flag';
+export type QType = 'map' | 'flag' | 'name_to_flag' | 'capital';
 
 /** Tier weights for a level, in order very_easy..very_hard. */
 export type TierMix = [number, number, number, number, number];
@@ -42,15 +42,18 @@ const RAMP_EXPERT = ['m_h', 'h', 'h', 'h_vh', 'h_vh', 'vh', 'vh', 'vh', 'vh', 'b
 export const CHAPTERS: ChapterDef[] = [
   { id: 'world_famous', topic: 'world', types: { map: 1 }, ramp: RAMP_EASY, starsToOpen: 0, icon: 'earth' },
   { id: 'usa_1', topic: 'usa', types: { map: 1 }, ramp: RAMP_EASY, starsToOpen: 14, icon: 'flag-variant' },
-  { id: 'europe', topic: 'europe', types: { map: 1 }, ramp: RAMP_MID, starsToOpen: 30, icon: 'castle' },
+  { id: 'europe', topic: 'europe', types: { map: 0.8, capital: 0.2 }, ramp: RAMP_MID, starsToOpen: 30, icon: 'castle' },
   { id: 'flags_1', topic: 'world', types: { flag: 1 }, ramp: RAMP_EASY, starsToOpen: 46, icon: 'flag' },
-  { id: 'americas', topic: 'americas', types: { map: 0.8, flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 62, icon: 'earth' },
-  { id: 'asia', topic: 'asia', types: { map: 0.8, name_to_flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 78, icon: 'temple-buddhist' },
-  { id: 'usa_2', topic: 'usa', types: { map: 1 }, ramp: RAMP_HARD, starsToOpen: 94, icon: 'star-circle' },
-  { id: 'africa', topic: 'africa', types: { map: 0.8, flag: 0.2 }, ramp: RAMP_MID, starsToOpen: 110, icon: 'elephant' },
+  { id: 'americas', topic: 'americas', types: { map: 0.7, flag: 0.15, capital: 0.15 }, ramp: RAMP_MID, starsToOpen: 62, icon: 'earth' },
+  { id: 'asia', topic: 'asia', types: { map: 0.7, name_to_flag: 0.15, capital: 0.15 }, ramp: RAMP_MID, starsToOpen: 78, icon: 'temple-buddhist' },
+  { id: 'usa_2', topic: 'usa', types: { map: 0.7, capital: 0.3 }, ramp: RAMP_HARD, starsToOpen: 94, icon: 'star-circle' },
+  { id: 'africa', topic: 'africa', types: { map: 0.7, flag: 0.15, capital: 0.15 }, ramp: RAMP_MID, starsToOpen: 110, icon: 'elephant' },
   { id: 'flags_2', topic: 'world', types: { flag: 0.7, name_to_flag: 0.3 }, ramp: RAMP_HARD, starsToOpen: 126, icon: 'flag-checkered' },
-  { id: 'oceania', topic: 'oceania', types: { map: 0.7, flag: 0.3 }, ramp: RAMP_MID, starsToOpen: 142, icon: 'palm-tree' },
-  { id: 'expert', topic: 'world', types: { map: 0.6, flag: 0.2, name_to_flag: 0.2 }, ramp: RAMP_EXPERT, starsToOpen: 158, icon: 'compass-rose' },
+  { id: 'oceania', topic: 'oceania', types: { map: 0.6, flag: 0.2, capital: 0.2 }, ramp: RAMP_MID, starsToOpen: 142, icon: 'palm-tree' },
+  { id: 'expert', topic: 'world', types: { map: 0.5, flag: 0.2, name_to_flag: 0.15, capital: 0.15 }, ramp: RAMP_EXPERT, starsToOpen: 158, icon: 'compass-rose' },
+  // added later: new chapters go at the end so nobody's open chapters change
+  { id: 'capitals_1', topic: 'world', types: { capital: 1 }, ramp: RAMP_MID, starsToOpen: 174, icon: 'city-variant' },
+  { id: 'usa_capitals', topic: 'usa', types: { capital: 1 }, ramp: RAMP_HARD, starsToOpen: 190, icon: 'bank' },
 ];
 
 export type LevelDef = {
@@ -86,7 +89,8 @@ export const FIRST_ROUND = { topic: 'world' as Topic, types: { map: 1 }, mix: TI
 
 /** Daily Challenge: same for everyone; seeded by the date. */
 export const DAILY_RECIPE: { topic: Topic; type: QType; count: number }[] = [
-  { topic: 'world', type: 'map', count: 6 },
+  { topic: 'world', type: 'map', count: 5 },
+  { topic: 'world', type: 'capital', count: 1 },
   { topic: 'world', type: 'flag', count: 2 },
   { topic: 'usa', type: 'map', count: 2 },
 ];
@@ -103,6 +107,9 @@ export const QUICK_TOPICS: { id: string; topic: Topic; type: QType }[] = [
   { id: 'oceania_map', topic: 'oceania', type: 'map' },
   { id: 'europe_flags', topic: 'europe', type: 'flag' },
   { id: 'pick_flag', topic: 'world', type: 'name_to_flag' },
+  { id: 'world_capitals', topic: 'world', type: 'capital' },
+  { id: 'europe_capitals', topic: 'europe', type: 'capital' },
+  { id: 'usa_capitals', topic: 'usa', type: 'capital' },
 ];
 
 export const TIERS: Tier[] = ['very_easy', 'easy', 'medium', 'hard', 'very_hard'];

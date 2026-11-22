@@ -292,3 +292,44 @@ describe('journey, hearts, ads, saves', () => {
     expect(daysBetween('2026-11-14', '2026-11-16')).toBe(2);
   });
 });
+
+describe('capital questions', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { capitalOf } = require('../../data/capitals');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { buildRound: build } = require('../picker');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { makeRng: rngOf } = require('../rng');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { dailyQuestions: daily } = require('../daily');
+
+  test('every option of a capital question has a capital, all four different', () => {
+    for (const topic of ['world', 'europe', 'usa', 'africa', 'oceania']) {
+      const qs = build(topic, { capital: 1 }, [0.2, 0.2, 0.2, 0.2, 0.2], 10, rngOf(`cap-${topic}`));
+      expect(qs).toHaveLength(10);
+      for (const q of qs) {
+        expect(q.type).toBe('capital');
+        const caps = q.options.map((o: string) => capitalOf(o));
+        expect(caps.every(Boolean)).toBe(true);
+        expect(new Set(caps).size).toBe(q.options.length);
+        expect(q.options[q.answer]).toBe(q.itemId);
+      }
+    }
+  });
+
+  test('disputed or split capitals are never asked', () => {
+    const qs = build('world', { capital: 1 }, [0.2, 0.2, 0.2, 0.2, 0.2], 200, rngOf('cap-all'));
+    for (const q of qs) for (const o of q.options) expect(['BO', 'ZA', 'IL', 'LK', 'SZ', 'NR']).not.toContain(o);
+  });
+
+  test('a mixed round never asks the same place twice', () => {
+    const qs = build('europe', { map: 0.5, capital: 0.5 }, [0.2, 0.2, 0.2, 0.2, 0.2], 10, rngOf('mix'));
+    expect(new Set(qs.map((q: { itemId: string }) => q.itemId)).size).toBe(10);
+  });
+
+  test('the Daily Challenge has one capital question and no repeats', () => {
+    const qs = daily('2026-11-22');
+    expect(qs.filter((q: { type: string }) => q.type === 'capital')).toHaveLength(1);
+    expect(new Set(qs.map((q: { itemId: string }) => q.itemId)).size).toBe(qs.length);
+  });
+});

@@ -1,7 +1,8 @@
 // Question picking: tiers from a mix, leaning toward undiscovered and recently missed items, avoiding recent
 // repeats (ported from the studio's quiz._pick), with plausible wrong options (nearby items of the same quiz).
 import { TIERS, type QType, type TierMix, type Topic } from '../config/levels';
-import { COUNTRY_BY_ID, itemById, pool, sceneOf } from '../data/gameData';
+import { capitalPool, COUNTRY_BY_ID, itemById, optionLabel, pool, sceneOf } from '../data/gameData';
+import { capitalOf } from '../data/capitals';
 import type { Rng } from './rng';
 import type { Question, QuestionType, Tier } from './types';
 import { balance } from '../config/balance';
@@ -94,8 +95,8 @@ export function pickItems(
 /** Wrong options: nearby items of the same quiz, never two with the same name. */
 export function optionsFor(id: string, type: QuestionType, poolIds: ReadonlySet<string>, rng: Rng, count = 4): string[] {
   const item = itemById(id);
-  const needFlag = type !== 'map';
-  const ok = (x: string) => x !== id && (!needFlag || !!COUNTRY_BY_ID[x]?.flag);
+  const needFlag = type === 'flag' || type === 'name_to_flag';
+  const ok = (x: string) => x !== id && (!needFlag || !!COUNTRY_BY_ID[x]?.flag) && (type !== 'capital' || !!capitalOf(x));
   let near = item.near.filter((x) => poolIds.has(x) && ok(x));
   if (near.length < count + 2) near = near.concat(item.near.filter((x) => ok(x) && !near.includes(x)));
   if (near.length < count - 1) {
@@ -103,10 +104,10 @@ export function optionsFor(id: string, type: QuestionType, poolIds: ReadonlySet<
     near = near.concat(rng.shuffle(rest));
   }
   const candidates = near.slice(0, Math.max(6, count + 2));
-  const names = new Set([item.name.en]);
+  const names = new Set([optionLabel(id, type)]);
   const wrong: string[] = [];
   for (const x of rng.shuffle(candidates.slice())) {
-    const nm = itemById(x).name.en;
+    const nm = optionLabel(x, type);
     if (names.has(nm)) continue;
     names.add(nm);
     wrong.push(x);
@@ -141,10 +142,10 @@ export function buildRound(
   firstId?: string,
 ): Question[] {
   const plan: QType[] = Array.from({ length: n }, () => chooseType(types, rng));
-  const flagCount = plan.filter((t) => t !== 'map').length;
-  const mapCount = n - flagCount;
   const qs: Question[] = [];
   const taken = new Set<string>();
+  // map questions first (the first-round pick is a map question), then capitals, then flags; no place twice
+  const mapCount = plan.filter((t) => t === 'map').length;
   if (mapCount > 0) {
     const p = pool(topic, false);
     const ids = new Set(p.map((x) => x.id));
@@ -158,11 +159,20 @@ export function buildRound(
       qs.push(makeQuestion(x.id, x.tier, 'map', ids, rng));
     }
   }
-  if (flagCount > 0) {
+  const capCount = plan.filter((t) => t === 'capital').length;
+  if (capCount > 0) {
+    const p = capitalPool(topic);
+    const ids = new Set(p.map((x) => x.id));
+    for (const x of pickItems(p, capCount, mix, rng, prefs, taken)) {
+      taken.add(x.id);
+      qs.push(makeQuestion(x.id, x.tier, 'capital', ids, rng));
+    }
+  }
+  const ftypes = plan.filter((t) => t === 'flag' || t === 'name_to_flag');
+  if (ftypes.length > 0) {
     const p = pool(topic === 'usa' ? 'world' : topic, true);
     const ids = new Set(p.map((x) => x.id));
-    const ftypes = plan.filter((t) => t !== 'map');
-    pickItems(p, flagCount, mix, rng, prefs, taken).forEach((x, i) => {
+    pickItems(p, ftypes.length, mix, rng, prefs, taken).forEach((x, i) => {
       qs.push(makeQuestion(x.id, x.tier, ftypes[i] ?? 'flag', ids, rng));
     });
   }
