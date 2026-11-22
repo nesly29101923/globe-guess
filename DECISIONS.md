@@ -138,3 +138,21 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - **Answers**: width estimate corrected (0.78 em, real text box); a single word is always one line and shrinks itself.
   Pause is a plain icon inside the title card; the combo badge lost its translucent glow disc; FPS counter moved to the
   bottom so it covers nothing.
+
+## Round 5 (iPhone 14 Pro play-test: feels like an app, too much text, clock out of time, hitches)
+- **Clock sound**: ticks were polled every 100 ms from an arbitrary start and the player was rewound (async) just
+  before playing, so beats drifted from the number and some came late. Now each beat is a timeout aimed at the next
+  whole (or, in the last 3 s, half) second from the true end time; tick = the number changes. Pooled players are
+  rewound after they play, so they are ready at their next turn.
+- **Hitches**: parsing a country's SVG (fine map 1.25 MB) happened on the spot: the coarse world when a round opened
+  and dozens of countries on the first flight over a region. Now parsed in 4 ms slices between frames: the coarse
+  world/US at app start (`warmAllIdle`), each round's question areas when the round opens (`warmViews`). The FPS
+  counter shows the last hitch (thread, ms, screen) so the next report pinpoints what is left.
+- **Less text, more game**: home has a chapter ribbon, a bigger PLAY, a goal pill and three coloured lobby tiles.
+  Today = seven day tiles (today glows and is tapped), a Daily Challenge tile with a round play button, three mission
+  tiles (icon, count, coin reward; a full one turns green and is tapped). Modes = two picture tiles. Pause = three round
+  switches + Home + Resume. In-round power-ups are round coloured buttons with a count badge.
+- **Shop**: power-ups as a 2-column card grid; 6 new button styles (10 in all); coin packs with art that grows
+  (coin, stack, sack, chest) and POPULAR / BEST ribbons; free coins as a card; the starter pack shows its contents as
+  icons. **Journey**: circles shrink to fit short phones, page dots show there are more chapters, the marker that
+  covered the level above is gone, empty stars visible.
