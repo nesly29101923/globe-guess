@@ -170,3 +170,22 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - **Zoom**: pinch (around the fingers), drag while zoomed, double-tap, and a magnifier button for one thumb; up to
   6x; springs back at each new question. The zoomed view stays inside the camera's framing, so the map never needs
   land it did not prepare for the question (no extra work, no empty areas).
+
+## Round 7: "Which is bigger?" and "Which one borders X?"
+- **Borders are computed, not taken from `near`.** `near` is only "nearest by distance" (the US list has Belize and
+  the Bahamas, not Canada). `tools/build_game_data/borders.py` reads the game's own outlines: two places border when
+  their outlines run within 3 km of each other for at least 15 km (outlines are simplified per place, so shared
+  borders do not coincide exactly). Wrong answers must be at least 80 km apart, so a corner touch (Botswana-Zambia,
+  Four Corners) or a strait can never make a "wrong" answer arguable. Never asked either way: pairs through disputed
+  territory (Serbia with Albania/North Macedonia/Montenegro, Morocco-Mauritania, Somalia-Djibouti), India-Afghanistan
+  (claimed via Kashmir), Singapore-Malaysia (strait), Michigan-Illinois/Minnesota (lake); Israel left out. Wrong
+  answers are picked to tempt: same continent, well known, close (Brazil -> Chile, Ecuador; Texas -> Arizona).
+- **Bigger**: two nearby places (so one camera shows both), purple A and orange B, the answer badges in the same
+  colours. Areas must differ by at least 1.5x, so a difference between area sources can never flip the answer.
+  Left out: places whose area is disputed (Morocco, Serbia, Somalia, Cyprus, Israel, Moldova, Georgia) and Michigan
+  (its outline includes a lot of lake). States use map area: the US map is equal-area. When the Mercator map makes the
+  smaller one look bigger (Finland v Ukraine, New Zealand v Papua New Guinea, Chile v Colombia) the question is two
+  tiers harder and the reveal explains the map stretch. 50/50 is off for two-answer questions.
+- Where they appear: Quick Play (Which is bigger?, World neighbours, US neighbours), mixed into Europe, Americas,
+  Asia, Africa, Oceania and USA 2, a new last chapter "Neighbours", one size question in the Daily Challenge, a few
+  border questions in Survival.
