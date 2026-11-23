@@ -1,13 +1,13 @@
-# Builds a test APK (release build, arm64 phones) and keeps it as a download on the run's page.
-# Start it by pushing a tag that begins with "apk-" (git tag apk-something && git push origin apk-something),
-# or from the Actions tab once this file is on the main branch.
+# Builds a test APK (release build, arm64 phones) and keeps it as a download on the run's page (Actions tab).
+# Start it by changing the file .github/apk-build (any change, for example the note in it) and pushing,
+# or with the "Run workflow" button on the Actions tab once this file is on the main branch.
 # The APK is signed with the project template's debug key: fine for testing on your own phones, not for the store.
 name: Android test APK
 
 on:
   workflow_dispatch:
   push:
-    tags: ['apk-*']
+    paths: ['.github/apk-build']
 
 jobs:
   apk:
