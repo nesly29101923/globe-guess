@@ -1,5 +1,5 @@
 // Small building blocks shared by every screen: pressable with feedback, text, buttons, chips, cards.
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Animated, {
   Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming,
@@ -170,6 +170,24 @@ export function SmallButton({ label, onPress, icon, iconNode, color: colorIn, te
       </View>
     </Press>
   );
+}
+
+/** Mounts its children `frames` frames after the screen. A screen that builds all its cards in one go blocks for
+ *  that long when it opens (a visible hitch); built a row per frame, each step fits inside a frame and the cards
+ *  arrive top to bottom while the screen is still fading in. */
+export function Deferred({ frames, children }: { frames: number; children: React.ReactNode }) {
+  const [on, setOn] = useState(frames <= 0);
+  useEffect(() => {
+    if (frames <= 0) return undefined;
+    let left = frames;
+    let h = requestAnimationFrame(function tick() {
+      if (--left <= 0) setOn(true);
+      else h = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return on ? <>{children}</> : null;
 }
 
 /** Pops in with a little overshoot after `delay` ms. */

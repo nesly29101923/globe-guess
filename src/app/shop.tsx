@@ -9,7 +9,7 @@ import { BUTTON_STYLES, COSMETICS, PRODUCTS, STARTER, type Product } from '../co
 import { fx } from '../components/fx';
 import { CoinPill, ScreenHeader } from '../components/hud';
 import { Coin, Icon, type IconName } from '../components/Icon';
-import { Dot, PopIn, Press, T } from '../components/ui';
+import { Deferred, Dot, PopIn, Press, T } from '../components/ui';
 import { haptic } from '../feedback/haptics';
 import { play } from '../feedback/sfx';
 import { fmt, t, upper } from '../i18n/strings';
@@ -28,6 +28,10 @@ function levelOf(id: string): number {
 }
 
 type Tab = 'items' | 'maps' | 'buttons' | 'coins';
+
+let knownPrices: Record<string, string> = {};
+/** Frames to wait before building card `i` of a grid with `perRow` cards a row: the first row at once, then a row a frame. */
+const row = (i: number, perRow: number) => Math.floor(i / perRow);
 
 const ITEMS: { id: ShopItem; icon: IconName; color: string; label: string; desc: string }[] = [
   { id: 'fiftyFifty', icon: 'circle-half-full', color: '#7C3AED', label: 'pu_fiftyFifty', desc: 'pu_fiftyFifty_desc' },
@@ -50,7 +54,7 @@ export default function ShopScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [bump, setBump] = useState(0);
-  const [prices, setPrices] = useState<Record<string, string>>({});
+  const [prices, setPrices] = useState<Record<string, string>>(knownPrices);
   const params = useLocalSearchParams<{ tab?: Tab }>();
   const [tab, setTab] = useState<Tab>(params.tab ?? 'items');
   const today = useGame.getState().today();
@@ -64,7 +68,15 @@ export default function ShopScreen() {
   };
   useEffect(() => {
     analytics.log('shop_opened', {});
-    purchases.products().then((ps) => setPrices(Object.fromEntries(ps.map((p) => [p.id, p.localizedPrice]))));
+    if (Object.keys(knownPrices).length) return undefined;
+    // store prices: asked for once the screen has opened (the answer re-renders the screen), then remembered
+    const h = setTimeout(() => {
+      purchases.products().then((ps) => {
+        knownPrices = Object.fromEntries(ps.map((p) => [p.id, p.localizedPrice]));
+        setPrices(knownPrices);
+      });
+    }, 350);
+    return () => clearTimeout(h);
   }, []);
   const flash = (m: string) => {
     setMsg(m);
@@ -146,7 +158,8 @@ export default function ShopScreen() {
             {ITEMS.map((it, i) => {
               const owned = it.id === 'streakFreeze' ? `${save.streak.freezes}/${balance.daily.streakFreezeMax}` : it.id === 'heartRefill' ? '' : `×${save.powerups[it.id as keyof typeof save.powerups]}`;
               return (
-                <PopIn key={it.id} delay={i * 30} style={st.cell}>
+                <Deferred key={it.id} frames={row(i, 2)}>
+                <PopIn style={st.cell}>
                   <View style={[st.card, shadow.soft]}>
                     {owned ? <View style={st.ownedTag}><T size={type.label} weight="black" color={colors.white}>{owned}</T></View> : null}
                     <View style={[st.bigIcon, { backgroundColor: it.color }]}><Icon name={it.icon} size={34} color="#FFFFFF" /></View>
@@ -155,6 +168,7 @@ export default function ShopScreen() {
                     <CoinButton price={priceOf(it.id)} affordable={save.coins >= priceOf(it.id)} onPress={() => buyItem(it.id)} testID={`buy-${it.id}`} />
                   </View>
                 </PopIn>
+                </Deferred>
               );
             })}
           </View>
@@ -162,12 +176,13 @@ export default function ShopScreen() {
 
         {tab === 'maps' ? (
           <View style={st.themes}>
-            {COSMETICS.filter((c) => c.kind === 'map').map((c) => {
+            {COSMETICS.filter((c) => c.kind === 'map').map((c, i) => {
               const th = mapThemes[c.theme ?? 'classic'];
               const owned = save.cosmetics.owned.includes(c.id);
               const inUse = save.cosmetics.mapTheme === c.id;
               return (
-                <Press key={c.id} onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.themeCell} testID={`theme-${c.id}`}>
+                <Deferred key={c.id} frames={row(i, 2)}>
+                <Press onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.themeCell} testID={`theme-${c.id}`}>
                   <View style={[st.theme, inUse && st.inUse]}>
                     <View style={[st.swatch, { backgroundColor: th.seaTop }]}>
                       <View style={[st.land, { backgroundColor: th.land, borderColor: th.landEdge }]} />
@@ -177,6 +192,7 @@ export default function ShopScreen() {
                     <PriceTag inUse={inUse} owned={owned} price={c.price} lockText={c.source === 'level' ? t('level_reached', { n: levelOf(c.id) }) : t('starter_only')} />
                   </View>
                 </Press>
+                </Deferred>
               );
             })}
           </View>
@@ -184,12 +200,13 @@ export default function ShopScreen() {
 
         {tab === 'buttons' ? (
           <View style={st.themes}>
-            {COSMETICS.filter((c) => c.kind === 'button').map((c) => {
+            {COSMETICS.filter((c) => c.kind === 'button').map((c, i) => {
               const b = BUTTON_STYLES[c.id];
               const owned = save.cosmetics.owned.includes(c.id);
               const inUse = save.cosmetics.buttonStyle === c.id;
               return (
-                <Press key={c.id} onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.btnCell} testID={`btn-${c.id}`}>
+                <Deferred key={c.id} frames={row(i, 2)}>
+                <Press onPress={() => (owned || c.price != null) && buyTheme(c.id)} disabled={!owned && c.price == null} style={st.btnCell} testID={`btn-${c.id}`}>
                   <View style={[st.theme, inUse && st.inUse]}>
                     <View style={[st.btnPreview, { backgroundColor: b.bg, borderColor: b.border ?? 'transparent' }]}>
                       <View style={[st.badge, { backgroundColor: b.badgeBg }]}><T size={type.caption} weight="black" color={b.badgeText}>A</T></View>
@@ -199,6 +216,7 @@ export default function ShopScreen() {
                     <PriceTag inUse={inUse} owned={owned} price={c.price} lockText={t('level_reached', { n: levelOf(c.id) })} />
                   </View>
                 </Press>
+                </Deferred>
               );
             })}
           </View>
@@ -241,7 +259,8 @@ export default function ShopScreen() {
                 </View>
               ) : null}
               {coinPacks.map((p, i) => (
-                <PopIn key={p.id} delay={i * 40} style={st.cell}>
+                <Deferred key={p.id} frames={row(i + 1, 2) + (starter ? 1 : 0)}>
+                <PopIn style={st.cell}>
                   <View style={[st.card, shadow.soft, p.tag === 'best' && st.bestCard]}>
                     {p.tag ? <View style={[st.ribbon, { backgroundColor: p.tag === 'best' ? colors.flame : colors.accent }]}><T size={type.caption} weight="black" color={colors.white}>{p.tag === 'best' ? t('best_tag') : t('popular_tag')}</T></View> : null}
                     <View style={st.art}><CoinArt tier={i + 1} /></View>
@@ -250,9 +269,11 @@ export default function ShopScreen() {
                     <BuyButton label={prices[p.id] ?? p.price} onPress={() => buyProduct(p)} busy={busy === p.id} testID={`buy-${p.id}`} />
                   </View>
                 </PopIn>
+                </Deferred>
               ))}
             </View>
             {!save.ads.removed ? (
+              <Deferred frames={4}>
               <View style={[st.section, shadow.soft]}>
                 <View style={st.itemRow}>
                   <View style={[st.bigIcon, { backgroundColor: colors.wrong, width: 52, height: 52 }]}><Icon name="cancel" size={28} color="#FFFFFF" /></View>
@@ -260,6 +281,7 @@ export default function ShopScreen() {
                   <BuyButton label={prices.remove_ads ?? '$3.99'} onPress={() => buyProduct(PRODUCTS.find((x) => x.id === 'remove_ads')!)} busy={busy === 'remove_ads'} testID="buy-remove-ads" />
                 </View>
               </View>
+              </Deferred>
             ) : null}
           </>
         ) : null}
