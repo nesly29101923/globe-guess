@@ -3,8 +3,9 @@
 // zoom springs back to 1 at every new question.
 //
 // The zoomed view is kept inside the view the camera framed. That is enough to see a tiny country, and it means the
-// map never has to draw land it did not prepare for this question (see flightPaths), so zooming costs no new work.
-import { useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+// zoomed view is always inside the image painted for this question. While the fingers move, that image is simply
+// enlarged; when they stop, `onSettle` lets the screen paint a sharp one for the new view.
+import { runOnJS, useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { usePanGesture, usePinchGesture, useSimultaneousGestures, useTapGesture } from 'react-native-gesture-handler';
 import type { Box, Cam } from './camera';
 
@@ -12,12 +13,17 @@ export const MAX_ZOOM = 6;
 export const BUTTON_ZOOM = 2.6;
 const SPRING = { damping: 18, stiffness: 180, mass: 0.8 };
 
-export function useMapZoom({ base, box, H, enabled }: {
+export function useMapZoom({ base, box, H, enabled, onSettle }: {
   base: { readonly value: Cam };
   box: Box;
   H: number;
   enabled: SharedValue<boolean>;
+  onSettle: () => void; // called (on the JS thread) when a zoom or drag has come to rest
 }) {
+  const settled = (fin?: boolean) => {
+    'worklet';
+    if (fin !== false) runOnJS(onSettle)();
+  };
   const k = useSharedValue(1);   // zoom factor
   const px = useSharedValue(0);  // pan, map units
   const py = useSharedValue(0);
@@ -55,7 +61,7 @@ export function useMapZoom({ base, box, H, enabled }: {
     const npx = clampX(mx - c.ux - ((sx - fx) * c.w) / (W * nz), c.w, nz);
     const npy = clampY(my - c.uy - ((sy - fy) * c.w) / (W * nz), c.w, nz);
     if (animate) {
-      k.value = withSpring(nz, SPRING);
+      k.value = withSpring(nz, SPRING, settled);
       px.value = withSpring(npx, SPRING);
       py.value = withSpring(npy, SPRING);
     } else {
@@ -75,7 +81,7 @@ export function useMapZoom({ base, box, H, enabled }: {
   // defined before the gestures: a worklet captures what it uses when it is created
   const reset = () => {
     'worklet';
-    k.value = withTiming(1, { duration: 220 });
+    k.value = withTiming(1, { duration: 220 }, settled);
     px.value = withTiming(0, { duration: 220 });
     py.value = withTiming(0, { duration: 220 });
   };
@@ -93,6 +99,7 @@ export function useMapZoom({ base, box, H, enabled }: {
     },
     onDeactivate: () => {
       if (k.value < 1.08) reset();
+      else settled();
     },
   });
 
@@ -111,6 +118,9 @@ export function useMapZoom({ base, box, H, enabled }: {
       const unit = c.w / z / W;
       px.value = clampX(px0.value - e.translationX * unit, c.w, z);
       py.value = clampY(py0.value - e.translationY * unit, c.w, z);
+    },
+    onDeactivate: () => {
+      if (k.value > 1.0001) settled();
     },
   });
 

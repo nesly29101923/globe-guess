@@ -18,9 +18,10 @@ import { fmt, t, upper } from '../i18n/strings';
 import { spendPowerup } from '../logic/economy';
 import { comboMultiplier, scoreFor } from '../logic/round';
 import type { PowerupId } from '../logic/save';
-import type { Answer, Question, QuizDef } from '../logic/types';
-import { easeInOut, frameItem, needsWrap, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
-import { MapCanvas, SECOND, type Flight } from '../map/MapCanvas';
+import type { Answer, Question, QuizDef, Scene } from '../logic/types';
+import { easeInOut, frameItem, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
+import { MapCanvas, SECOND } from '../map/MapCanvas';
+import { dropAhead, prerenderStop, renderView, retire, retireStop, takeStop, type Layer, type ShownLayer, type Stop, type ViewSpec } from '../map/raster';
 import { useMapZoom } from '../map/useMapZoom';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { warmViews } from '../map/shapes';
@@ -107,7 +108,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const [scorePop, setScorePop] = useState<{ v: number; k: number } | null>(null);
   const [teach, setTeach] = useState<PowerupId | null>(null);
   const [secondChanceUsedRound, setSecondChanceUsedRound] = useState(0);
-  const [done, setDone] = useState<string[]>([]);
+  const done = useRef<string[]>([]); // answered this round: tinted on the map
+  const [lastDone, setLastDone] = useState<string | null>(null);
   const powerupsUsed = useRef(0);
   const startedAt = useRef(Date.now());
   const askStart = useRef(0);
@@ -134,7 +136,48 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const zoomOn = useSharedValue(false);
   const firstGreen = useSharedValue(1);
   const secondMode = useSharedValue(0); // 0 orange, 1 orange -> green on reveal, 2 hidden until the reveal, then green
-  const { cam, gesture: zoomGesture, reset: resetZoom, toggle: toggleZoom, zoom } = useMapZoom({ base: baseCam, box, H: SH, enabled: zoomOn });
+  // ---- the map's images (see map/raster.ts): the place the camera left, the place it is at or flying to, and a
+  // sharper one for where the player zoomed in. Painted on this thread, so a frame only ever moves images.
+  const stops = useRef<{ under: Stop | null; over: Stop | null; zoom: Layer | null }>({ under: null, over: null, zoom: null });
+  const [layers, setLayers] = useState<ShownLayer[]>([]);
+  const showStops = useCallback(() => {
+    const { under, over, zoom: z } = stops.current;
+    const leaving = (l: Layer | null | undefined) => (l ? { ...l, leaving: true } : null);
+    setLayers([leaving(under?.around), over?.around, leaving(under?.view), over?.view, z].filter((l): l is ShownLayer => !!l));
+  }, []);
+  const specFor = useCallback((c: Cam, sc: Scene, doneIds: string[] = done.current): ViewSpec => ({
+    scene: sc, topic: sc === 'usa' ? 'usa' : 'all', theme, cam: c, box, width: SW, height: SH,
+    done: doneIds.filter((d) => (sc === 'usa') === d.startsWith('US-')),
+  }), [theme, box, SW, SH]);
+  useEffect(() => () => {
+    const st = stops.current;
+    retireStop(st.under);
+    retireStop(st.over);
+    retire(st.zoom);
+    dropAhead();
+  }, []);
+  const zoomRef = useRef<{ cam: { readonly value: Cam }; zoom: { readonly value: number } } | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // the player stopped zooming or dragging: paint what they now look at, at full sharpness
+  const onZoomSettle = useCallback(() => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const z = zoomRef.current;
+      const st = stops.current;
+      if (!z || !st.over || flying.current) return;
+      const old = st.zoom;
+      st.zoom = z.zoom.value > 1.05 ? renderView(specFor(z.cam.value, st.over.view.scene)) : null;
+      if (st.zoom || old) showStops();
+      retire(old);
+    }, 90);
+  }, [specFor, showStops]);
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, []);
+  const flying = useRef(0); // id of the camera move in progress, 0 at rest
+  const flightSeq = useRef(0);
+  const { cam, gesture: zoomGesture, reset: resetZoom, toggle: toggleZoom, zoom } = useMapZoom({ base: baseCam, box, H: SH, enabled: zoomOn, onSettle: onZoomSettle });
+  zoomRef.current = { cam, zoom };
   const [zoomed, setZoomed] = useState(false);
   useEffect(() => {
     zoomOn.value = phase === 'ask' && canZoom;
@@ -151,8 +194,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const dim = useSharedValue(0);
   const flagSmall = useSharedValue(0);
   const timerP = useSharedValue(1);
-  const [wrap, setWrap] = useState(true);
-  const [flight, setFlight] = useState<Flight>({ from: startCam, to: startCam });
   const prevScene = useRef(initialQuiz.questions[0]?.scene ?? 'world');
 
   // parse the map detail around every question of this round in the background, in small slices
@@ -174,19 +215,46 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   useEffect(() => clearAll, []);
 
 
+  const landing = useRef<(() => void) | undefined>(undefined);
+  const landed = useCallback((id: number) => {
+    if (flying.current !== id) return;
+    flying.current = 0;
+    // the screen is now inside the new place's image: the one the camera left is no longer seen
+    const st = stops.current;
+    if (st.under) {
+      retireStop(st.under);
+      st.under = null;
+      showStops();
+    }
+    landing.current?.();
+  }, [showStops]);
+
   const flyTo = useCallback((to: Cam, ms: number, onEnd?: () => void) => {
     const from = baseCam.value;
     const target = unwrapTowards(from, to, scene);
-    setWrap(scene === 'world' && needsWrap([from, target, { ...target, w: Math.max(from.w, target.w) * 1.6 }], box, SH));
+    // the image of where the camera is going: painted ahead during the reveal, or now (before the camera starts)
+    const st = stops.current;
+    const stop = takeStop(specFor(target, scene));
+    retireStop(st.under);
+    retire(st.zoom);
+    stops.current = { under: st.over, over: stop, zoom: null };
+    showStops();
+    const id = ++flightSeq.current;
+    flying.current = id;
+    landing.current = onEnd;
     camFrom.value = from;
     camTo.value = target;
-    // map detail is built for what this move shows (see flightPaths)
-    setFlight({ from, to: target });
     camProgress.value = 0;
     camProgress.value = withTiming(1, { duration: ms, easing: Easing.linear }, (fin) => {
-      if (fin && onEnd) runOnJS(onEnd)();
+      if (fin) runOnJS(landed)(id);
     });
-  }, [baseCam, camFrom, camTo, camProgress, scene, box, SH]);
+  }, [baseCam, camFrom, camTo, camProgress, scene, specFor, showStops, landed]);
+
+  /** Paint the image for a camera position before it is needed, at a moment nothing else happens. */
+  const paintAhead = (c: Cam, sc: Scene, doneIds?: string[]) => {
+    if (phaseRef.current === 'done') return;
+    prerenderStop(specFor(c, sc, doneIds));
+  };
 
   // ---- question start
   useEffect(() => {
@@ -254,6 +322,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     for (let i = 0; i < 4; i++) later(i * 60, () => play('pop'));
     askStart.current = Date.now();
     runTimer(quiz.timer * 1000);
+    // a flag question flies to its country on the reveal: paint that view now, while the player thinks
+    if (q && item && (isFlagQ || isPickFlag)) later(320, () => paintAhead(frameItem(item, scene, box, M.flagTargetFill, M.minKm.flag), scene, [...done.current, q.itemId]));
     if (idx === 0) analytics.log(quiz.mode === 'first' ? 'tutorial_round_start' : 'round_start', { mode: quiz.mode, level: quiz.levelId ?? null });
   };
 
@@ -358,7 +428,8 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     const a: Answer = { itemId: q.itemId, type: q.type, scene: q.scene, tier: q.tier, correct: right, chosen: k, timeMs: ms, score: sc, combo: newCombo, skipped };
     setAnswers((prev) => [...prev, a]);
     analytics.log('question_answered', { mode: quiz.mode, type: q.type, item_id: q.itemId, tier: q.tier, correct: right, time_ms: ms, chosen_id: k === null ? null : q.options[k] });
-    setDone((d) => [...d, q.itemId]);
+    done.current = [...done.current, q.itemId];
+    setLastDone(q.itemId);
     // reveal on the map: the right area turns green (on a miss too: a miss always teaches the answer)
     reveal.value = withTiming(1, { duration: 250 });
     if (isFlagQ || isPickFlag) {
@@ -379,6 +450,9 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     const dbgHold = (globalThis as unknown as { __mapDebug?: { holdMs?: number } }).__mapDebug?.holdMs;
     const hold = dbgHold ?? (right ? motion.revealHold : motion.wrongHold);
     later(hold, () => next(livesLeft));
+    // paint the next question's view while this answer is on screen, so the camera can leave without a pause
+    const nq = quiz.questions[idx + 1];
+    if (nq && !(quiz.mode === 'survival' && livesLeft <= 0)) later(isFlagQ || isPickFlag ? 700 : 320, () => paintAhead(camFor(nq, box), nq.scene));
   };
 
   const phaseRef = useRef<Phase>('fly');
@@ -514,8 +588,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     });
   };
 
-  const doneHere = useMemo(() => done.filter((d) => (scene === 'usa') === d.startsWith('US-')), [done, scene]);
-
   // one text size for all four answers: a long name shrinks every answer, so the four always look the same
   const btnW = (W - 24 - 84) / 2;
   const answerFonts = useMemo(() => {
@@ -554,7 +626,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     <View style={StyleSheet.absoluteFill}>
       <MapCanvas width={SW} height={SH} box={box} scene={scene} topic={topic} cam={cam} targetId={q ? targetOf(q) : null} reveal={reveal1}
         target2Id={q ? secondOf(q) : null} t2Alpha={t2Alpha} t2Reveal={t2Reveal}
-        targetAlpha={targetAlpha} dim={dim} done={doneHere} wrap={wrap} theme={theme} flight={flight} moving={moving} />
+        targetAlpha={targetAlpha} dim={dim} theme={theme} layers={layers} lastDone={lastDone} moving={moving} />
       <Pressable style={StyleSheet.absoluteFill} onPress={skipWait} testID="skip-area" />
       {/* pinch / drag / double-tap zoom while a map question is open */}
       {phase === 'ask' && canZoom ? (

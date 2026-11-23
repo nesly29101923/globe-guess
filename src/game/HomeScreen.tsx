@@ -28,6 +28,7 @@ import { canRepair, displayedStreak, repair, streakAtRisk } from '../logic/strea
 import { msToMidnight } from '../logic/time';
 import type { Topic } from '../config/levels';
 import { neutralCam, type Box, type Cam } from '../map/camera';
+import { prewarmWorld } from '../map/raster';
 import { StaticMap, regionCam } from '../map/StaticMap';
 import { ads } from '../services/ads';
 import type { SaveState } from '../logic/save';
@@ -112,6 +113,10 @@ export function HomeScreen() {
   const dark = useIsDark();
   const chosen = COSMETICS.find((c) => c.id === save.cosmetics.mapTheme)?.theme ?? 'classic';
   const theme = mapThemes[chosen === 'classic' && dark ? 'night' : chosen] ?? mapThemes.classic;
+  // the round's whole-world image is painted while the player is here, a few milliseconds at a time
+  useEffect(() => {
+    prewarmWorld('world', 'all', theme);
+  }, [theme]);
   const topic: Topic = ch.topic;
   const scene = topic === 'usa' ? 'usa' : 'world';
   const mapBox: Box = useMemo(() => ({ fx: SW / 2, fy: SH * 0.36, fw: SW * 0.9, fh: SH * 0.4, W: SW }), [SW, SH]);
