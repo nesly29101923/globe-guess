@@ -3,8 +3,7 @@ import { BlurStyle, FillType, Skia, type SkImage, type SkPath } from '@shopify/r
 import type { Topic } from '../config/levels';
 import { COUNTRIES, STATES } from '../data/gameData';
 import type { Scene } from '../logic/types';
-import { map as M } from '../theme';
-import { lodFor, viewRect, zoomAt, type Box, type Cam } from './camera';
+import { viewRect, type Box, type Cam } from './camera';
 
 type ShapeFile = { shapes: Record<string, string>; medium?: Record<string, string>; coarse?: Record<string, string>; graticule?: string; background?: Record<string, string> };
 
@@ -86,49 +85,10 @@ function hits(b: number[], v: Rect4, wrap: number): boolean {
   return false;
 }
 
-/** One LOD's land: quiz land (white) and land around it (grey). */
-export type LodPaths = { scope: SkPath; other: SkPath };
-
 export function inScopeFn(topic: Topic | 'all') {
   const regions = topic === 'all' ? null : TOPIC_REGIONS[topic];
   return (c: (typeof COUNTRIES)[number]) => c.quiz && (!regions || regions.includes(c.region));
 }
-
-/** Land as outlines for one camera position (or a move between two): only what can be on screen at each level of
- *  detail. Used by the still maps (home, atlas), which draw once. The round's map does not draw outlines at all:
- *  it moves images painted from them (see raster.ts). */
-export function flightPaths(scene: Scene, topic: Topic | 'all', from: Cam, to: Cam, box: Box, H: number): LodPaths[] {
-  const coarse = scopePaths(scene, topic, 2);
-  const usa = scene === 'usa';
-  const rects: Rect4[][] = [[], []];
-  const N = 24;
-  for (let i = 0; i <= N; i++) {
-    const c = zoomAt(from, to, i / N, M.zoomCurve);
-    const lod = lodFor(c.w / box.W, usa);
-    if (lod === 2) continue;
-    const r = viewRect(c, box, H);
-    const m = 0.25 * (r[2] - r[0]);
-    rects[lod].push([r[0] - m, r[1] - m, r[2] + m, r[3] + m]);
-  }
-  const wrap = usa ? 0 : 2 * Math.PI * 100;
-  const pick = (lod: 0 | 1): LodPaths => {
-    const rs = rects[lod];
-    if (!rs.length) return EMPTY;
-    const all = usa ? STATES : COUNTRIES;
-    const vis = all.filter((x) => rs.some((r) => hits(x.bbox, r, wrap)));
-    if (usa) {
-      const f = file('usa');
-      const bg = Object.keys(f.background ?? {});
-      return { scope: merge('usa', vis.map((x) => x.id), lod), other: combine('usa:other', 'usa', bg, lod) };
-    }
-    const inScope = inScopeFn(topic);
-    const cs = vis as (typeof COUNTRIES)[number][];
-    return { scope: merge('world', cs.filter(inScope).map((c) => c.id), lod), other: merge('world', cs.filter((c) => !inScope(c)).map((c) => c.id), lod) };
-  };
-  return [pick(0), usa ? EMPTY : pick(1), coarse];
-}
-
-const EMPTY: LodPaths = { scope: Skia.PathBuilder.Make().detach(), other: Skia.PathBuilder.Make().detach() };
 
 /** The soft glow under the target, blurred once into a small image instead of blurring the path every frame.
  *  `sigma` is the blur in map units, `pxPerUnit` the image resolution. Returns the image and where it goes on the map. */

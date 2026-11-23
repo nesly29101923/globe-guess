@@ -109,15 +109,3 @@ export function viewRect(c: Cam, box: Box, H: number): [number, number, number, 
   const s = box.W / c.w;
   return [c.ux - box.fx / s, c.uy - box.fy / s, c.ux + (box.W - box.fx) / s, c.uy + (H - box.fy) / s];
 }
-
-/** Does a camera (or a move between two) show beyond the world's edge, so the wrapped copies are needed? */
-export function needsWrap(cams: Cam[], box: Box, H: number): boolean {
-  for (const c of cams) {
-    const s = box.W / c.w;
-    const left = c.ux - box.fx / s;
-    const right = c.ux + (box.W - box.fx) / s;
-    if (left < -WRAP / 2 || right > WRAP / 2) return true;
-    void H;
-  }
-  return false;
-}

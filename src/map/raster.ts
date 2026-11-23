@@ -153,7 +153,7 @@ function paint(wPx: number, hPx: number, o: DrawOpts): SkImage | null {
 const WORLD_PX = PixelRatio.get() >= 2.5 ? 4096 : 3072;
 const USA_PX = 2048;
 
-type World = { layer: Layer | null; used: number; finish: () => Layer | null };
+type World = { layer: Layer | null; used: number; failed: boolean; finish: () => Layer | null };
 const worlds = new Map<string, World>();
 let clock = 0;
 
@@ -179,7 +179,6 @@ function startWorld(scene: Scene, topic: Topic | 'all', theme: MapTheme): World 
   let steps: (() => void)[] = [];
   let at = 0;
   let spent = 0;
-  let failed = false;
   const one = () => {
     const t0 = performance.now();
     try {
@@ -195,25 +194,27 @@ function startWorld(scene: Scene, topic: Topic | 'all', theme: MapTheme): World 
         paintLog.push({ ms: Math.round(spent + performance.now() - t0), px: wPx * hPx, lod: 2 });
       }
     } catch {
-      failed = true;
+      world.failed = true;
     }
     spent += performance.now() - t0;
   };
   const world: World & { step: () => void } = {
     layer: null,
     used: ++clock,
+    failed: false,
     step: () => {
-      if (!world.layer && !failed) one();
+      if (!world.layer && !world.failed) one();
     },
     finish: () => {
-      while (!world.layer && !failed) one();
+      while (!world.layer && !world.failed) one();
       return world.layer;
     },
   };
   return world;
 }
 
-const worldKey = (scene: Scene, topic: Topic | 'all', theme: MapTheme) => `${scene}:${scene === 'usa' ? 'usa' : topic}:${theme.id}`;
+// 'world' and 'all' colour the land the same way: one image, not two
+const worldKey = (scene: Scene, topic: Topic | 'all', theme: MapTheme) => `${scene}:${scene === 'usa' ? 'usa' : topic === 'world' ? 'all' : topic}:${theme.id}`;
 
 function worldFor(scene: Scene, topic: Topic | 'all', theme: MapTheme): World & { step?: () => void } {
   const key = worldKey(scene, topic, theme);
@@ -236,17 +237,42 @@ export function worldLayer(scene: Scene, topic: Topic | 'all', theme: MapTheme):
   return worldFor(scene, topic, theme).finish();
 }
 
-/** Paint a world layer before it is needed, a few milliseconds at a time between frames (see whenIdle). */
-export function prewarmWorld(scene: Scene, topic: Topic | 'all', theme: MapTheme) {
-  const w = worldFor(scene, topic, theme) as World & { step: () => void; queued?: boolean };
-  if (w.layer || w.queued) return;
+/** Paint a world layer before it is needed, a few milliseconds at a time between frames (see whenIdle).
+ *  `onReady` is called once it exists (at once if it already does). */
+export function prewarmWorld(scene: Scene, topic: Topic | 'all', theme: MapTheme, onReady?: () => void) {
+  const w = worldFor(scene, topic, theme) as World & { step: () => void; queued?: boolean; waiting?: (() => void)[] };
+  if (w.layer) return onReady?.();
+  if (onReady) (w.waiting ??= []).push(onReady);
+  if (w.queued) return;
   w.queued = true;
   const job = () => {
-    if (w.layer) return;
-    w.step();
-    if (!w.layer) whenIdle([job]);
+    if (!w.layer) w.step();
+    if (!w.layer && !w.failed) return whenIdle([job]);
+    const waiting = w.waiting ?? [];
+    w.waiting = [];
+    waiting.forEach((f) => f());
   };
   whenIdle([job]);
+}
+
+/** How fine the shared world image is (pixels per map unit), without painting it. */
+export function worldPpu(scene: Scene): number {
+  if (scene === 'world') return WORLD_PX / WRAP;
+  const b = usaBounds();
+  return USA_PX / (b[2] - b[0]);
+}
+
+/** The whole map painted for one zoom: as fine as the screen at `ppu`, with lines as wide as a sharp view has there.
+ *  The menu shows it while its map is dragged: the shared world image is finer, but its lines are made for close-ups
+ *  and look washed out from far away. Small (about the size of a screen), so it is painted in one go. */
+export function renderWorldAt(scene: Scene, theme: MapTheme, ppu: number): Layer | null {
+  const rect: Rect4 = scene === 'world' ? [-WRAP / 2, WORLD_TOP, WRAP / 2, 128] : usaBounds();
+  const w = rect[2] - rect[0];
+  const wPx = Math.min(4096, Math.ceil(w * ppu));
+  const k = wPx / w;
+  const hPx = Math.min(4096, Math.ceil((rect[3] - rect[1]) * k));
+  const image = paint(wPx, hPx, { scene, topic: 'all', theme, lod: 2, rect, ppu: k, dp: PixelRatio.get() });
+  return image ? { image, x: rect[0], y: rect[1], w, h: hPx / k, ppu: k, scene } : null;
 }
 
 // ---------------------------------------------------------------- view layers
