@@ -37,6 +37,7 @@ type DrawOpts = {
   ppu: number;        // pixels per map unit
   dp: number;         // pixels per screen point: line widths and the shadow offset are given in points
   done?: string[];
+  doneColor?: string; // tint of the `done` places (default: the theme's)
 };
 
 function fill(color: string): SkPaint {
@@ -117,7 +118,7 @@ function landSteps(c: SkCanvas, o: DrawOpts): (() => void)[] {
   if (o.done?.length) {
     const ids = new Set(o.done);
     const done = [...scope, ...other].filter((x) => ids.has(x.id));
-    each(done, fill(th.done));
+    each(done, fill(o.doneColor ?? th.done));
     each(done, stroke(th.landEdge, Math.max(M.edge * u, px)));
   }
   return steps;
@@ -262,22 +263,36 @@ export function worldPpu(scene: Scene): number {
   return USA_PX / (b[2] - b[0]);
 }
 
-/** The whole map painted for one zoom: as fine as the screen at `ppu`, with lines as wide as a sharp view has there.
- *  The menu shows it while its map is dragged: the shared world image is finer, but its lines are made for close-ups
- *  and look washed out from far away. Small (about the size of a screen), so it is painted in one go. */
-export function renderWorldAt(scene: Scene, theme: MapTheme, ppu: number): Layer | null {
+// The whole map painted for the menu's zoom: about one screen point per map unit, with lines as wide as a sharp
+// view has there. The menu shows it while its map is dragged and the Atlas shows it as its overview: the shared world
+// image is finer, but its lines are made for close-ups and look washed out from this far. About the size of a
+// screen, so it is painted in one go. One per scene and theme, kept.
+const menus = new Map<string, Layer>();
+
+export function menuWorldPpu(): number {
+  return PixelRatio.get();
+}
+
+export function menuWorld(scene: Scene, theme: MapTheme): Layer | null {
+  const key = `${scene}:${theme.id}`;
+  const hit = menus.get(key);
+  if (hit) return hit;
   const rect: Rect4 = scene === 'world' ? [-WRAP / 2, WORLD_TOP, WRAP / 2, 128] : usaBounds();
   const w = rect[2] - rect[0];
-  const wPx = Math.min(4096, Math.ceil(w * ppu));
+  const wPx = Math.min(4096, Math.ceil(w * menuWorldPpu()));
   const k = wPx / w;
   const hPx = Math.min(4096, Math.ceil((rect[3] - rect[1]) * k));
   const image = paint(wPx, hPx, { scene, topic: 'all', theme, lod: 2, rect, ppu: k, dp: PixelRatio.get() });
-  return image ? { image, x: rect[0], y: rect[1], w, h: hPx / k, ppu: k, scene } : null;
+  if (!image) return null;
+  const layer: Layer = { image, x: rect[0], y: rect[1], w, h: hPx / k, ppu: k, scene };
+  menus.set(key, layer);
+  if (menus.size > 3) menus.delete(menus.keys().next().value as string); // an old theme's: freed with the garbage
+  return layer;
 }
 
 // ---------------------------------------------------------------- view layers
 
-export type ViewSpec = { scene: Scene; topic: Topic | 'all'; theme: MapTheme; cam: Cam; box: Box; width: number; height: number; done?: string[] };
+export type ViewSpec = { scene: Scene; topic: Topic | 'all'; theme: MapTheme; cam: Cam; box: Box; width: number; height: number; done?: string[]; doneColor?: string };
 
 const norm = (x: number) => x - Math.round(x / WRAP) * WRAP;
 
@@ -312,7 +327,7 @@ function renderRect(s: ViewSpec, span: number, marginPx: number, maxPx: number):
   const rect: Rect4 = [x0, y0, x0 + wPx / ppu, y0 + hPx / ppu];
   const usa = s.scene === 'usa';
   const image = paint(wPx, hPx, {
-    scene: s.scene, topic: s.topic, theme: s.theme, lod: lodFor(PixelRatio.get() / ppu, usa) as Lod, rect, ppu, dp: pr, done: s.done,
+    scene: s.scene, topic: s.topic, theme: s.theme, lod: lodFor(PixelRatio.get() / ppu, usa) as Lod, rect, ppu, dp: pr, done: s.done, doneColor: s.doneColor,
   });
   return image ? { image, x: x0, y: y0, w: wPx / ppu, h: hPx / ppu, ppu, scene: s.scene } : null;
 }
@@ -346,6 +361,11 @@ export function prerenderStop(s: ViewSpec) {
   if (ahead) retireStop(ahead.stop);
   const stop = renderStop(s);
   ahead = stop ? { key, stop } : null;
+}
+
+/** Is the stop for this view already painted? Then taking it costs nothing. */
+export function hasAhead(s: ViewSpec): boolean {
+  return ahead?.key === specKey(s);
 }
 
 /** Forget the stop painted ahead (the round is over). */

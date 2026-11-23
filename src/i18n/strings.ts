@@ -387,12 +387,16 @@ export function currentLanguage(): string {
   return lang;
 }
 
+// Asked once: the phone's locale is a native call, and upper() runs for every capital-letter label on every render.
+let tag: string | null = null;
 export function languageTag(): string {
+  if (tag) return tag;
   try {
-    return getLocales()[0]?.languageTag ?? 'en-US';
+    tag = getLocales()[0]?.languageTag ?? 'en-US';
   } catch {
-    return 'en-US';
+    tag = 'en-US';
   }
+  return tag;
 }
 
 export function t(key: StringKey, vars?: Record<string, string | number>): string {
@@ -426,6 +430,13 @@ export function fmt(n: number, compact = false): string {
 }
 
 /** One timer formatter: 2h 05m, 4m 09s. */
+/** A country's size: "1.2M km²" or "244,000 km²". */
+export function fmtArea(km2: number): string {
+  if (km2 >= 1e6) return `${(km2 / 1e6).toFixed(1)}M km²`;
+  if (km2 < 1000) return `${fmt(Math.max(1, Math.round(km2)))} km²`;
+  return `${fmt(Math.round(km2 / 1000) * 1000)} km²`;
+}
+
 export function fmtTime(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   const h = Math.floor(s / 3600);

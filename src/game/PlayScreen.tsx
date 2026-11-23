@@ -14,14 +14,14 @@ import { areaOf, itemById, itemName, optionLabel } from '../data/gameData';
 import { capitalOf } from '../data/capitals';
 import { haptic } from '../feedback/haptics';
 import { play, playCorrect } from '../feedback/sfx';
-import { fmt, t, upper } from '../i18n/strings';
+import { fmt, t, upper, fmtArea } from '../i18n/strings';
 import { spendPowerup } from '../logic/economy';
 import { comboMultiplier, scoreFor } from '../logic/round';
 import type { PowerupId } from '../logic/save';
 import type { Answer, Question, QuizDef, Scene } from '../logic/types';
 import { easeInOut, frameItem, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
 import { MapCanvas, SECOND } from '../map/MapCanvas';
-import { dropAhead, prerenderStop, retireStop, takeStop, type Layer, type ShownLayer, type Stop, type ViewSpec } from '../map/raster';
+import { dropAhead, hasAhead, prerenderStop, retireStop, takeStop, type Layer, type ShownLayer, type Stop, type ViewSpec } from '../map/raster';
 import { warmViews } from '../map/shapes';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
@@ -45,11 +45,6 @@ function revealText(q: Question): string {
   if (q.type === 'bigger') return `${itemName(q.itemId)} · ${fmtArea(areaOf(itemById(q.itemId)))}`;
   if (q.type === 'borders') return t('borders_reveal', { a: itemName(q.itemId), b: itemName(q.subjectId ?? '') });
   return itemName(q.itemId);
-}
-
-function fmtArea(km2: number): string {
-  if (km2 >= 1e6) return `${(km2 / 1e6).toFixed(1)}M km²`;
-  return `${fmt(Math.round(km2 / 1000) * 1000)} km²`;
 }
 
 export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDef; onDone: (r: RoundResult) => void; onQuit: () => void }) {
@@ -184,6 +179,13 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   useEffect(() => clearAll, []);
 
 
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const landing = useRef<(() => void) | undefined>(undefined);
   const landed = useCallback((id: number) => {
     if (flying.current !== id) return;
@@ -201,13 +203,23 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const flyTo = useCallback((to: Cam, ms: number, onEnd?: () => void) => {
     const from = baseCam.value;
     const target = unwrapTowards(from, to, scene);
-    // the image of where the camera is going: painted ahead during the reveal, or now (before the camera starts)
+    // The image of where the camera is going was painted ahead, during the reveal. If it was not (the first
+    // question, a skipped reveal), the camera starts anyway and the image is painted while it flies: painting is
+    // on this thread and the camera on the drawing thread, so nobody waits. Until it arrives the world image shows.
     const st = stops.current;
-    const stop = takeStop(specFor(target, scene));
-    retireStop(st.under);
-    stops.current = { under: st.over, over: stop };
-    showStops();
+    const spec = specFor(target, scene);
     const id = ++flightSeq.current;
+    retireStop(st.under);
+    if (hasAhead(spec)) stops.current = { under: st.over, over: takeStop(spec) };
+    else {
+      stops.current = { under: st.over, over: null };
+      setTimeout(() => {
+        if (flightSeq.current !== id || !alive.current) return;
+        stops.current = { ...stops.current, over: takeStop(spec) };
+        showStops();
+      }, 30);
+    }
+    showStops();
     flying.current = id;
     landing.current = onEnd;
     camFrom.value = from;

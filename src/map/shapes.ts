@@ -46,35 +46,10 @@ export function itemPath(scene: Scene, id: string, lod: Lod = 0): SkPath | null 
   return p;
 }
 
-function combine(key: string, scene: Scene, ids: string[], lod: Lod): SkPath {
-  const hit = pathCache.get(`${key}:${lod}`);
-  if (hit) return hit;
-  const out = merge(scene, ids, lod);
-  pathCache.set(`${key}:${lod}`, out);
-  return out;
-}
-
 const TOPIC_REGIONS: Record<string, string[] | null> = {
   world: null, europe: ['europe'], asia: ['asia'], africa: ['africa'], americas: ['north_america', 'south_america'],
   oceania: ['oceania'], usa: null,
 };
-
-/** Land that belongs to the quiz (drawn white) and land around it (drawn grey), per scene and topic. */
-export function scopePaths(scene: Scene, topic: Topic | 'all', lod: Lod = 0): { scope: SkPath; other: SkPath } {
-  if (scene === 'usa') {
-    const f = file('usa');
-    return {
-      scope: combine('usa:scope', 'usa', STATES.map((s) => s.id), lod),
-      other: combine('usa:other', 'usa', Object.keys(f.background ?? {}), lod),
-    };
-  }
-  const regions = topic === 'all' ? null : TOPIC_REGIONS[topic];
-  const inScope = (c: (typeof COUNTRIES)[number]) => c.quiz && (!regions || regions.includes(c.region));
-  return {
-    scope: combine(`world:scope:${topic}`, 'world', COUNTRIES.filter(inScope).map((c) => c.id), lod),
-    other: combine(`world:other:${topic}`, 'world', COUNTRIES.filter((c) => !inScope(c)).map((c) => c.id), lod),
-  };
-}
 
 export type Rect4 = [number, number, number, number];
 
@@ -130,21 +105,6 @@ export function graticulePath(): SkPath | null {
   return p;
 }
 
-/** Areas already answered in this round (tinted). */
-export function donePath(scene: Scene, ids: string[], lod: Lod = 1): SkPath {
-  return merge(scene, ids, lod);
-}
-
-function merge(scene: Scene, ids: string[], lod: Lod): SkPath {
-  const b = Skia.PathBuilder.Make();
-  for (const id of ids) {
-    const p = itemPath(scene, id, lod);
-    if (p) b.addPath(p);
-  }
-  b.setFillType(FillType.EvenOdd);
-  return b.detach();
-}
-
 // ---------------------------------------------------------------- background warm-up
 // Parsing a country's SVG path is the expensive step (the fine world file is 1.25 MB). Done on the spot, the first
 // flight over a region parsed dozens of countries in one frame and the game froze for a moment. Instead the work is
@@ -180,12 +140,10 @@ export function whenIdle(jobs: (() => void)[]) {
 export function warmAllIdle() {
   const jobs: Job[] = [];
   for (const c of COUNTRIES) jobs.push(() => void itemPath('world', c.id, 2));
-  jobs.push(() => scopePaths('world', 'all', 2));
   jobs.push(() => void graticulePath());
   for (const s of STATES) jobs.push(() => void itemPath('usa', s.id, 2));
   const bg = Object.keys(file('usa').background ?? {});
   for (const id of bg) jobs.push(() => void itemPath('usa', id, 2));
-  jobs.push(() => scopePaths('usa', 'usa', 2));
   enqueue(jobs);
 }
 
