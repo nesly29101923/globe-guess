@@ -26,6 +26,11 @@ function file(scene: Scene): ShapeFile {
 
 const pathCache = new Map<string, SkPath>();
 
+/** Shapes drawn around the quiz land that are not items (Canada and Mexico on the US map). */
+export function backgroundIds(scene: Scene): string[] {
+  return Object.keys(file(scene).background ?? {});
+}
+
 export function itemPath(scene: Scene, id: string, lod: Lod = 0): SkPath | null {
   const key = `${scene}:${id}:${lod}`;
   const hit = pathCache.get(key);
@@ -84,15 +89,14 @@ function hits(b: number[], v: Rect4, wrap: number): boolean {
 /** One LOD's land: quiz land (white) and land around it (grey). */
 export type LodPaths = { scope: SkPath; other: SkPath };
 
-function inScopeFn(topic: Topic | 'all') {
+export function inScopeFn(topic: Topic | 'all') {
   const regions = topic === 'all' ? null : TOPIC_REGIONS[topic];
   return (c: (typeof COUNTRIES)[number]) => c.quiz && (!regions || regions.includes(c.region));
 }
 
-/** Land for one camera flight. A zoomed-in camera shows a small part of the world, so the fine and medium levels of
- *  detail only hold the countries that can be on screen while that level is drawn (sampled along the flight).
- *  The coarse level is the whole map and is cached. Drawing the whole world at fine detail every frame was the
- *  main cost of a camera move. */
+/** Land as outlines for one camera position (or a move between two): only what can be on screen at each level of
+ *  detail. Used by the still maps (home, atlas), which draw once. The round's map does not draw outlines at all:
+ *  it moves images painted from them (see raster.ts). */
 export function flightPaths(scene: Scene, topic: Topic | 'all', from: Cam, to: Cam, box: Box, H: number): LodPaths[] {
   const coarse = scopePaths(scene, topic, 2);
   const usa = scene === 'usa';
@@ -181,13 +185,6 @@ function merge(scene: Scene, ids: string[], lod: Lod): SkPath {
   return b.detach();
 }
 
-/** Warm the caches before the first question so nothing hitches: the coarse whole map and the graticule.
- *  Fine and medium detail is built per flight, for the part of the map the camera will show. */
-export function warmScene(scene: Scene, topic: Topic | 'all') {
-  scopePaths(scene, topic, 2);
-  if (scene === 'world') graticulePath();
-}
-
 // ---------------------------------------------------------------- background warm-up
 // Parsing a country's SVG path is the expensive step (the fine world file is 1.25 MB). Done on the spot, the first
 // flight over a region parsed dozens of countries in one frame and the game froze for a moment. Instead the work is
@@ -212,6 +209,11 @@ function enqueue(jobs: Job[], front = false) {
     running = true;
     setTimeout(pump, 0);
   }
+}
+
+/** Run jobs in the gaps between frames, a few milliseconds at a time, after what is already queued. */
+export function whenIdle(jobs: (() => void)[]) {
+  enqueue(jobs);
 }
 
 /** At app start: the coarse world and US maps, used by every screen with a map. */
