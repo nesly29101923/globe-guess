@@ -19,8 +19,9 @@ number of frames, is the drawing work per frame.
 | outlines every frame (before round 9) | 14.2 ms |
 | images (round 9) | 1.4 ms |
 
-`open_screen.py <testID>` taps a button on the menu four times and prints the longest frame and the script time
-while the screen opens (first open is the expensive one).
+`open_screens.py [testID or url:/route ...]` opens each screen or sheet once in a fresh browser and prints the
+longest frame and the script time (the first open is the expensive one). `round_end.py` does the same for the
+result screen, `round_end.py atlas` for the Atlas region sheets. A single run varies by about 8 ms.
 
 Needs Python with Playwright and Google Chrome at `/usr/bin/google-chrome`.
 The real check is the FPS counter on a phone (Settings > FPS counter).

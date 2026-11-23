@@ -45,4 +45,7 @@
 - Round 10: menu rebuilt around one PLAY (stage card + quiet bottom bar), map drag/zoom moved from the round to the
   menu, shop cards built a row per frame. Next on the phone: FPS counter while dragging the menu map and while
   opening the shop, Journey and the Today sheet ("last hitch" names the screen).
+- Round 11: tap a country on the menu map (flag, capital, size), bottom bar aligned, every screen and sheet measured
+  on first open and built in steps where it mattered (table in DECISIONS.md), Journey swipes no longer re-render all
+  pages. Next on the phone: "last hitch" after opening each screen once, and after the first frame of a round.
 

@@ -250,3 +250,45 @@ Every choice made while building without a reviewer, with one line of reasoning.
   prices arrived. Cards are now built a row per frame (`Deferred` in `components/ui.tsx`) and prices are asked for
   after the screen has opened, then remembered. Longest frame while the shop opens for the first time, web build:
   47 ms -> 21 ms. The same `Deferred` can be used on any screen that hitches when it opens.
+
+## Round 11: tap a country on the menu, the bar lined up, and every screen checked for the shop's hitch
+- **Tap a country on the menu map.** It lifts out of the map in the target colour (a quick bulge, a shadow under
+  it, a ring spreading from the finger), a pop and a light tap are played, the camera glides to frame it, and a card
+  hangs above it with its flag, name, capital and size. The card follows the country while the map moves. Tap the sea
+  or the same country to put it back. It shows answers on purpose (decided by Ömer): the menu map is where a player
+  can look things up, a round is where they are asked.
+  - Double-tap zoom is gone: a tap now flies to the country, and waiting to see whether a second tap follows would
+    make every tap feel late. Pinch zooms.
+  - A tap next to a tiny country (within a finger's width of its label) picks it; a country inside another wins.
+- **Bottom bar.** The buttons sat at the top of the bar (the bar did not centre them), the flame was pushed left by
+  the streak number beside it, and it was drawn tilted 4 degrees when not animating. Every icon now sits in the same
+  box in the middle of its button; the streak number and a plain red dot hang beside the flame without moving it.
+- **The shop's hitch elsewhere.** Every screen and sheet was measured on its first open (web build, longest frame;
+  one run varies by about 8 ms, idle is 17 ms):
+
+  | | before | after | what was done |
+  |---|---|---|---|
+  | Atlas, a region's cards (Flags: 194) | 97 ms | 19 ms | first rows with the sheet, then a row per frame |
+  | Atlas, a region's cards (Africa: 52) | 71 ms | 24 ms | same |
+  | Atlas screen | 71 ms | 50-65 ms | the map is the menu's world image (already painted) instead of outlines; the rest is WebGL start-up, which only the web build has |
+  | Level sheet | 32 ms | 18 ms | rows a frame apart |
+  | Modes sheet | 31 ms | 21-26 ms | tiles one frame after the sheet |
+  | Today sheet | 26 ms | 18-22 ms | challenge and missions a frame apart |
+  | Journey | 22 ms | 18-28 ms | no real change on open; see below |
+  | Quick Play, Settings, Result | 22-41 ms | same | no measurable change (see below) |
+
+  - Journey: each swipe re-rendered every chapter page and all its levels, because the pages were handed new
+    functions on every render. Pages and levels are memoised now and only the page that becomes (or stops being) the
+    current one renders. Levels are built over three frames when the screen opens.
+  - Result: the share picture was built off screen in the frame the result opened; it is built half a second later.
+    What is left in that frame is the round's three canvases closing (web) and the result's own first render.
+  - Quick Play and Settings are plain screens of 15-20 views; their first frame is the navigation itself.
+- **Round start.** If the first question's image is not painted yet, the camera starts at once and the image is
+  painted while it flies (painting is on the JS thread, the camera on the drawing thread). Before, the tap on PLAY
+  waited for the paint.
+- **First draw of the world image.** Drawing an image for the first time uploads it to the GPU: 25-45 MB for the
+  world image, in the first frame of a round. The menu map now draws it once as an unseen dot as soon as it is
+  painted, so the upload happens on the idle menu.
+- `upper()` asked the phone for its locale (a native call) for every capital-letter label on every render. Asked once.
+- What this cannot show: the numbers are from the web build. On the phone the FPS counter's "last hitch" line names
+  the screen; that is the list to work from next.

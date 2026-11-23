@@ -30,6 +30,13 @@ Android, fully offline, no account.
 - `crash-log.cmd` (phone on USB, developer mode on) launches the app and writes `crash-log.txt` via adb.
   `install-test.cmd` installs an APK over USB.
 
+## Round 11 notes
+
+- Tapping a country on the menu: `pick` and `PlaceCard` in `src/map/ExploreMap.tsx`.
+- `python3 tools/perf/open_screens.py` measures the first open of every screen and sheet; `round_end.py` the result
+  screen and the Atlas region sheets. One run varies by about 8 ms: run it a few times.
+- `menuWorld()` in `src/map/raster.ts` is the whole-world image at the menu's zoom, shared by the menu and the Atlas.
+
 ## Round 10 notes (menu)
 
 - Menu: `src/game/HomeScreen.tsx`. The stage card (chapter, goal bar, PLAY) and the bottom bar (`NavButton`).
