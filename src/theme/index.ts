@@ -27,6 +27,7 @@ export const colors = {
   progressTodoEdge: '#94A3B8',
   disabled: '#CBD5E1',
   heart: '#EF4444',
+  badge: '#0F172A',       // count badges with white text: dark in both light and dark mode
 };
 
 export type Palette = typeof colors;

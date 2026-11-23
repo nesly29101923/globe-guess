@@ -290,7 +290,7 @@ export function PowerupButton({ icon, label, count, onPress, disabled, highlight
         {/* a round coloured button per power-up: the colour and icon say what it is, the badge how many */}
         <View style={[st.pu, { backgroundColor: PU_COLORS[icon] ?? colors.accent }, highlight && st.puHot, disabled && { opacity: 0.45 }]} accessibilityLabel={label}>
           <Icon name={icon} size={30} color="#FFFFFF" />
-          <View style={[st.puCount, { backgroundColor: free ? colors.correct : colors.ink }]}>
+          <View style={[st.puCount, { backgroundColor: free ? colors.correct : colors.badge }]}>
             <T size={type.caption} weight="black" color={colors.white}>{free ? t('free') : String(count)}</T>
           </View>
         </View>
