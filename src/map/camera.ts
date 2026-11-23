@@ -25,8 +25,14 @@ export function frameItem(it: Item, scene: Scene, box: Box, fill: number = M.tar
   const minW = km / Math.max(it.kmu, 1e-6);
   let w = Math.max(box.W / s, minW);
   if (scene === 'world') w = Math.min(w, M.maxWorldShare * WRAP);
-  return { ux: (x0 + x1) / 2, uy: (y0 + y1) / 2, w };
+  let uy = (y0 + y1) / 2;
+  // the world map ends at about 84°N: never show above it (it left an empty band over northern targets)
+  if (scene === 'world') uy = Math.max(uy, WORLD_TOP + (box.fy * w) / box.W);
+  return { ux: (x0 + x1) / 2, uy, w };
 }
+
+/** Top edge of the drawn world (y grows southwards), a little above the northernmost land. */
+export const WORLD_TOP = -296;
 
 /** Wide view used behind flag questions and as the first camera position. */
 export function neutralCam(scene: Scene): Cam {

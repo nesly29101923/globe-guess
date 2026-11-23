@@ -169,6 +169,8 @@ export function HomeScreen() {
     router.push({ pathname: '/play', params: { mode: 'daily', nonce: String(Date.now()) } });
   };
   const playJourney = () => {
+    // a new player's first PLAY is the guided first round (easy, famous places, no timer pressure)
+    if (!save.ftue.firstRoundDone) return router.push({ pathname: '/play', params: { mode: 'first', nonce: String(Date.now()) } });
     if (hearts.count <= 0 && balance.hearts.enabled) return router.push('/journey');
     router.push({ pathname: '/play', params: { mode: 'journey', level: lv.id, nonce: String(Date.now()) } });
   };
@@ -229,11 +231,12 @@ export function HomeScreen() {
         </View>
         <BigButton label={`${t('play')} · ${t('level_short', { n: lv.index + 1 })}`} icon={lv.boss ? 'crown' : 'play'} onPress={playJourney} breathe={focused && !sheet} testID="home-play" height={76} />
         <View style={st.goalPill}><Icon name="flag-checkered" size={15} color={colors.accent} /><T size={type.label} weight="black" color={colors.accent} lines={1} style={{ flexShrink: 1 }}>{goalText}</T></View>
-        <View style={st.dock}>
+        {/* a new player has one button, PLAY; the tiles appear once there is more than one place to go */}
+        {modesOn || shopOn ? <View style={st.dock}>
           <DockButton icon="map-marker-path" color="#7C3AED" label={t('journey')} onPress={() => router.push('/journey')} testID="home-journey" />
           {modesOn ? <DockButton icon="gamepad-variant" color="#F59E0B" label={t('modes')} onPress={() => setSheet('modes')} testID="home-modes" /> : null}
           {shopOn ? <DockButton icon="store" color="#16A34A" label={t('shop')} onPress={() => router.push('/shop')} testID="home-shop" /> : null}
-        </View>
+        </View> : null}
       </View>
 
       {/* Today: what resets every day, shown as things to tap, not text to read */}

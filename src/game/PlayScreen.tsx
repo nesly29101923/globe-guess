@@ -668,7 +668,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
         <SecondChanceSheet onPick={onSecondChance} items={powerups.secondChance} free={!secondChanceTaught && playerLevel >= balance.powerupTeachAtLevel.secondChance}
           adOk={secondChanceUsedRound < balance.ads.rewardedSecondChancePerRound && ads.rewardedReady() && !useGame.getState().session.firstSession} />
       ) : null}
-      {paused ? <PauseSheet onResume={resume} onQuit={quiz.mode === 'first' ? undefined : onQuit} /> : null}
+      {paused ? <PauseSheet onResume={resume} onQuit={onQuit} /> : null}
       {offerContinue ? <SecondChanceSheet survival onPick={(h) => onContinue(h === 'ad')} items={0} free={false} adOk /> : null}
     </View>
   );

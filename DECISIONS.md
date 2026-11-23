@@ -189,3 +189,11 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - Where they appear: Quick Play (Which is bigger?, World neighbours, US neighbours), mixed into Europe, Americas,
   Asia, Africa, Oceania and USA 2, a new last chapter "Neighbours", one size question in the Daily Challenge, a few
   border questions in Survival.
+
+## Round 8: always open on the menu
+- The original build dropped a new player straight into a first round (and a second) without a menu. Quitting went back
+  to the start screen, which sent the player into the same round again: a loop with no way to the menu. The app now
+  always opens on home; a new player's first PLAY is the guided first round, and every round can be quit from pause.
+  Quitting goes back to the existing menu instead of stacking a new one. The dock tiles appear only once there is
+  more than one place to go.
+- The camera never shows above the top of the world map (about 84°N); it left an empty band over northern targets.

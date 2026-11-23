@@ -71,10 +71,11 @@ export default function PlayRoute() {
   };
 
   const playAgain = (pp: PlayParams) => router.replace({ pathname: '/play', params: { ...pp, nonce: String(Date.now()) } });
-  const home = () => router.replace('/');
+  // back to the menu that is already under this screen (replacing would stack a second menu)
+  const home = () => (router.canGoBack() ? router.dismissTo('/') : router.replace('/'));
 
   if (!result) {
-    return <PlayScreen key={params.nonce ?? 'x'} quiz={quiz} onDone={onDone} onQuit={() => router.replace('/')} />;
+    return <PlayScreen key={params.nonce ?? 'x'} quiz={quiz} onDone={onDone} onQuit={home} />;
   }
 
   const S = result.summary;
