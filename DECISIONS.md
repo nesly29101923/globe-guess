@@ -197,3 +197,32 @@ Every choice made while building without a reviewer, with one line of reasoning.
   Quitting goes back to the existing menu instead of stacking a new one. The dock tiles appear only once there is
   more than one place to go.
 - The camera never shows above the top of the world map (about 84°N); it left an empty band over northern targets.
+
+## Round 9: the map is drawn from images, not outlines ("find the big performance cause")
+- **Cause.** Every frame of a camera move drew the land as outlines: 20,000 to 87,000 points, filled, shadowed and
+  stroked, on three full-screen canvases. Skia has to turn outlines into triangles on the drawing thread each frame,
+  so the cost grows with the map's detail, not with what changes. Measured in the web build: 14.2 ms of Skia work per
+  frame, more than a whole frame at 120 Hz (8.3 ms), before the game's own UI. The frame where the camera stopped was
+  worse still: it switched to anti-aliased fills and full borders in one go. Earlier rounds only trimmed this
+  (levels of detail, fewer countries per flight); the approach itself was the problem.
+- **Fix.** The land is painted once into images and a frame only moves images (`src/map/raster.ts`):
+  - a whole-world image (4096 px wide on high-density screens, 3072 otherwise), painted while the player is on the
+    home screen, a few milliseconds at a time;
+  - for each camera stop, an image of exactly that view at the screen's own pixels (at rest the map is as sharp as
+    outlines, pixel for pixel), plus for small countries a coarser image of the land around it;
+  - painting happens on the JS thread during the reveal of the previous answer, never on the drawing thread.
+  A frame of a camera move is now 2 to 6 textured rectangles: 1.4 ms of Skia work, the same on any map detail.
+- Layers under a layer that covers the screen are skipped, so the GPU fills each pixel once or twice (this matters
+  on cheap Android GPUs). The glow and target canvases do not redraw at all while they show nothing (flights).
+- The image for a place the camera flies to **fades in** as the camera arrives. Showing it at once made a sharp
+  rectangle grow in the middle of a softer picture.
+- Zoom: while the fingers move the image is enlarged; when they stop, a sharp image of the zoomed view is painted.
+- The place just answered is drawn as one outline during the next flight (the image the camera leaves was painted
+  before the answer and has no tint for it).
+- Images are freed explicitly two seconds after they leave the screen. Waiting for the garbage collector would keep
+  tens of megabytes per question alive.
+- Not changed: the still maps on home and in the Atlas draw outlines once and never redraw.
+- **What could not be checked here.** This computer has no GPU: the web preview draws in software and stays at 15-30
+  fps whatever the map does (it measures pixel filling, not what a phone does). The claim rests on the measured Skia
+  work per frame and on how Skia works; the FPS counter on a real phone is the proof. `tools/perf/` has the scripts.
+- Count badges on the power-up buttons were white on white in dark mode: they use a fixed dark badge colour now.

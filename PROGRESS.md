@@ -38,3 +38,7 @@
 - Round 4 (after the first iPhone run): FPS counter, theme context + cached styles, glow by layer opacity, ledges
   instead of shadows, lean home (Today / Modes sheets), lean round and result. Next: read the FPS counter on the
   phone per screen (UI vs JS) and fix what it shows.
+- Round 9: the round's map is drawn from images painted ahead of time instead of outlines every frame (see
+  DECISIONS.md, `src/map/raster.ts`, `tools/perf/`). Skia work per frame while the camera moves: 14.2 ms -> 1.4 ms in
+  the web build. Next: read the FPS counter on the iPhone during flights, the reveal and pinch zoom; check memory on
+  a low-end Android (each question holds 1-2 screen-sized images, the world image is 25-45 MB).

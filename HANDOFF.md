@@ -30,6 +30,19 @@ Android, fully offline, no account.
 - `crash-log.cmd` (phone on USB, developer mode on) launches the app and writes `crash-log.txt` via adb.
   `install-test.cmd` installs an APK over USB.
 
+## Round 9 notes (map performance)
+
+- The round's map: `src/map/raster.ts` paints the land into images (world layer, one view per camera stop);
+  `src/map/MapCanvas.tsx` only moves those images; `src/game/PlayScreen.tsx` decides which are on screen
+  (`stops`, `flyTo`, `paintAhead`, `onZoomSettle`).
+- Knobs at the top of `raster.ts`: world image width, how far the view image reaches beyond the screen, when a layer
+  fades in (`FADE_IN`) or is dropped (`MAX_SHRINK`), pixel caps for large screens.
+- To check on a phone: FPS counter on, play a round. Expected: UI stays at the screen's rate during camera moves.
+  If a move still stutters, the "last hitch" line of the counter says which thread and how long.
+- No native change in this round: `git pull` and a normal build are enough (no `prebuild --clean`).
+- Scripts for the web preview: `tools/perf/README.md`. Its fps numbers are software rendering and mean nothing for
+  a phone; the Skia-work-per-frame number does.
+
 ## Round 4 notes
 
 - FPS counter: Settings (or the pause menu) > FPS counter. `UI` = drawing thread, `JS` = game logic, `ms` = longest
