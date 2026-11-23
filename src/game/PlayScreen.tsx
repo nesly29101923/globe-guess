@@ -3,7 +3,7 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Animated, { Easing, cancelAnimation, runOnJS, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { balance } from '../config/balance';
 import { COSMETICS } from '../config/cosmetics';
@@ -21,9 +21,7 @@ import type { PowerupId } from '../logic/save';
 import type { Answer, Question, QuizDef, Scene } from '../logic/types';
 import { easeInOut, frameItem, neutralCam, unwrapTowards, widen, zoomAt, zoomLength, type Box, type Cam } from '../map/camera';
 import { MapCanvas, SECOND } from '../map/MapCanvas';
-import { dropAhead, prerenderStop, renderView, retire, retireStop, takeStop, type Layer, type ShownLayer, type Stop, type ViewSpec } from '../map/raster';
-import { useMapZoom } from '../map/useMapZoom';
-import { GestureDetector } from 'react-native-gesture-handler';
+import { dropAhead, prerenderStop, retireStop, takeStop, type Layer, type ShownLayer, type Stop, type ViewSpec } from '../map/raster';
 import { warmViews } from '../map/shapes';
 import { ads } from '../services/ads';
 import { analytics } from '../services/analytics';
@@ -122,7 +120,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const item = q ? itemById(q.itemId) : null;
   const isFlagQ = q?.type === 'flag';
   const isPickFlag = q?.type === 'name_to_flag';
-  const canZoom = !!q && !isFlagQ && !isPickFlag;
   const scene = q?.scene ?? 'world';
   const topic = scene === 'usa' ? 'usa' : 'all';
 
@@ -131,19 +128,18 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   const camFrom = useSharedValue<Cam>(startCam);
   const camTo = useSharedValue<Cam>(startCam);
   const camProgress = useSharedValue(1);
-  // the game camera; the player's pinch zoom sits on top of it (useMapZoom) and is what the map draws
+  // the game camera. The player does not move the map in a round (dragging and zooming it is for the menu)
   const baseCam = useDerivedValue(() => zoomAt(camFrom.value, camTo.value, easeInOut(camProgress.value), M.zoomCurve));
-  const zoomOn = useSharedValue(false);
   const firstGreen = useSharedValue(1);
   const secondMode = useSharedValue(0); // 0 orange, 1 orange -> green on reveal, 2 hidden until the reveal, then green
-  // ---- the map's images (see map/raster.ts): the place the camera left, the place it is at or flying to, and a
-  // sharper one for where the player zoomed in. Painted on this thread, so a frame only ever moves images.
-  const stops = useRef<{ under: Stop | null; over: Stop | null; zoom: Layer | null }>({ under: null, over: null, zoom: null });
+  // ---- the map's images (see map/raster.ts): the place the camera left and the place it is at or flying to.
+  // Painted on this thread, so a frame only ever moves images.
+  const stops = useRef<{ under: Stop | null; over: Stop | null }>({ under: null, over: null });
   const [layers, setLayers] = useState<ShownLayer[]>([]);
   const showStops = useCallback(() => {
-    const { under, over, zoom: z } = stops.current;
+    const { under, over } = stops.current;
     const leaving = (l: Layer | null | undefined) => (l ? { ...l, leaving: true } : null);
-    setLayers([leaving(under?.around), over?.around, leaving(under?.view), over?.view, z].filter((l): l is ShownLayer => !!l));
+    setLayers([leaving(under?.around), over?.around, leaving(under?.view), over?.view].filter((l): l is ShownLayer => !!l));
   }, []);
   const specFor = useCallback((c: Cam, sc: Scene, doneIds: string[] = done.current): ViewSpec => ({
     scene: sc, topic: sc === 'usa' ? 'usa' : 'all', theme, cam: c, box, width: SW, height: SH,
@@ -153,38 +149,11 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     const st = stops.current;
     retireStop(st.under);
     retireStop(st.over);
-    retire(st.zoom);
     dropAhead();
-  }, []);
-  const zoomRef = useRef<{ cam: { readonly value: Cam }; zoom: { readonly value: number } } | null>(null);
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // the player stopped zooming or dragging: paint what they now look at, at full sharpness
-  const onZoomSettle = useCallback(() => {
-    if (settleTimer.current) clearTimeout(settleTimer.current);
-    settleTimer.current = setTimeout(() => {
-      const z = zoomRef.current;
-      const st = stops.current;
-      if (!z || !st.over || flying.current) return;
-      const old = st.zoom;
-      st.zoom = z.zoom.value > 1.05 ? renderView(specFor(z.cam.value, st.over.view.scene)) : null;
-      if (st.zoom || old) showStops();
-      retire(old);
-    }, 90);
-  }, [specFor, showStops]);
-  useEffect(() => () => {
-    if (settleTimer.current) clearTimeout(settleTimer.current);
   }, []);
   const flying = useRef(0); // id of the camera move in progress, 0 at rest
   const flightSeq = useRef(0);
-  const { cam, gesture: zoomGesture, reset: resetZoom, toggle: toggleZoom, zoom } = useMapZoom({ base: baseCam, box, H: SH, enabled: zoomOn, onSettle: onZoomSettle });
-  zoomRef.current = { cam, zoom };
-  const [zoomed, setZoomed] = useState(false);
-  useEffect(() => {
-    zoomOn.value = phase === 'ask' && canZoom;
-  }, [phase, canZoom, zoomOn]);
-  useAnimatedReaction(() => zoom.value > 1.2, (now, before) => {
-    if (now !== before) runOnJS(setZoomed)(now);
-  });
+  const cam = baseCam;
   const moving = useDerivedValue(() => (camProgress.value < 1 ? 1 : 0));
   const reveal = useSharedValue(0);
   const targetAlpha = useSharedValue(0);
@@ -236,8 +205,7 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
     const st = stops.current;
     const stop = takeStop(specFor(target, scene));
     retireStop(st.under);
-    retire(st.zoom);
-    stops.current = { under: st.over, over: stop, zoom: null };
+    stops.current = { under: st.over, over: stop };
     showStops();
     const id = ++flightSeq.current;
     flying.current = id;
@@ -260,8 +228,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
   useEffect(() => {
     if (!q || !item) return;
     clearAll();
-    zoomOn.value = false;
-    resetZoom();
     setPhase('fly');
     setStates(['idle', 'idle', 'idle', 'idle']);
     setFrozen(false);
@@ -628,12 +594,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
         target2Id={q ? secondOf(q) : null} t2Alpha={t2Alpha} t2Reveal={t2Reveal}
         targetAlpha={targetAlpha} dim={dim} theme={theme} layers={layers} lastDone={lastDone} moving={moving} />
       <Pressable style={StyleSheet.absoluteFill} onPress={skipWait} testID="skip-area" />
-      {/* pinch / drag / double-tap zoom while a map question is open */}
-      {phase === 'ask' && canZoom ? (
-        <GestureDetector gesture={zoomGesture}>
-          <View style={StyleSheet.absoluteFill} testID="zoom-area" />
-        </GestureDetector>
-      ) : null}
 
       {/* header */}
       <View style={[st.col, { top, width: W, left: (SW - W) / 2 }]} pointerEvents="box-none">
@@ -705,14 +665,6 @@ export function PlayScreen({ quiz: initialQuiz, onDone, onQuit }: { quiz: QuizDe
         </View>
       ) : null}
 
-      {/* magnifier: zoom on the target with one thumb (pinch and double-tap work too) */}
-      {canZoom && (phase === 'ask' || zoomed) ? (
-        <Press onPress={() => toggleZoom()} style={[st.zoomBtn, { top: gridTop - 58, right: (SW - W) / 2 + 14 }]} testID="zoom" scaleTo={0.88}>
-          <View style={[st.zoomInner, zoomed && { backgroundColor: colors.accent }]}>
-            <Icon name={zoomed ? 'magnify-minus' : 'magnify-plus'} size={26} color={zoomed ? colors.white : colors.accent} />
-          </View>
-        </Press>
-      ) : null}
 
       {/* power-ups */}
       {showPowerups && q ? (
@@ -771,8 +723,6 @@ const make_st = (colors: Palette) => StyleSheet.create({
   survivalCount: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 10, height: 28 },
   close: { position: 'absolute', zIndex: 5 },
   trapNote: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6, marginTop: 6, maxWidth: 320 },
-  zoomBtn: { position: 'absolute', zIndex: 4 },
-  zoomInner: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: 'rgba(15,23,42,0.16)' },
   closeInner: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   flagWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   namePrompt: { backgroundColor: colors.surface, borderRadius: radius.xl, paddingHorizontal: 22, paddingVertical: 14, maxWidth: '86%' },

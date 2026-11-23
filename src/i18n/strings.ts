@@ -123,7 +123,6 @@ const en = {
   qt_world_bigger: 'Which is bigger?',
   qt_world_borders: 'World neighbours',
   qt_usa_borders: 'US neighbours',
-  zoom_hint: 'Pinch to zoom',
   day_n: 'Day {n}',
   ms_correct_answers: 'Right answers',
   ms_correct_answers_big: 'Right answers',
