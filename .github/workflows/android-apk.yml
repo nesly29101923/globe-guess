@@ -1,0 +1,37 @@
+# Builds a test APK (release build, arm64 phones) and keeps it as a download on the run's page.
+# Start it by pushing a tag that begins with "apk-" (git tag apk-something && git push origin apk-something),
+# or from the Actions tab once this file is on the main branch.
+# The APK is signed with the project template's debug key: fine for testing on your own phones, not for the store.
+name: Android test APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['apk-*']
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Make the Android project
+        run: npx expo prebuild -p android --clean --no-install
+      - name: Build
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: globe-guess-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
