@@ -16,7 +16,7 @@ import { Celebration, type CelebrationSpec } from '../components/Celebration';
 import { fx } from '../components/fx';
 import { CoinPill, IconButton, LevelBadge } from '../components/hud';
 import { Coin, Icon, RewardIcon, type IconName } from '../components/Icon';
-import { BigButton, Dot, PopIn, Press, ProgressBar, Sheet, SheetTitle, SmallButton, T } from '../components/ui';
+import { Deferred, BigButton, Dot, PopIn, Press, ProgressBar, Sheet, SheetTitle, SmallButton, T } from '../components/ui';
 import { haptic } from '../feedback/haptics';
 import { play, setMenuMusic } from '../feedback/sfx';
 import { fmt, fmtTime, t } from '../i18n/strings';
@@ -192,7 +192,7 @@ export function HomeScreen() {
 
   return (
     <View style={[StyleSheet.absoluteFill, st.bg]}>
-      <ExploreMap width={SW} height={SH} box={mapBox} scene={scene} home={mapCam} theme={theme} resetKey={mapReset} onMoved={setMapMoved} />
+      <ExploreMap width={SW} height={SH} box={mapBox} scene={scene} home={mapCam} theme={theme} resetKey={mapReset} onMoved={setMapMoved} safeTop={mapTop} safeBottom={mapBottom - 54} />
 
       {/* top bar: what the player has */}
       <View style={[st.top, { paddingTop: insets.top + 8, width: W }]} pointerEvents="box-none">
@@ -285,7 +285,8 @@ export function HomeScreen() {
             })}
           </View>
 
-          {/* Daily Challenge: one tile, one button */}
+          {/* Daily Challenge: one tile, one button. (The sheet is built a part per frame, so opening it never stalls.) */}
+          <Deferred frames={1}>
           <View style={[st.challenge, dailyDone && { backgroundColor: colors.correctSoft }]}>
             <Icon name={dailyDone ? 'calendar-check' : 'calendar-star'} size={34} color={dailyDone ? colors.correct : colors.white} />
             <View style={{ flex: 1 }}>
@@ -296,9 +297,11 @@ export function HomeScreen() {
               : dailyDone ? <Icon name="check-circle" size={30} color={colors.correct} />
               : <Press onPress={playDaily} testID="daily-play" scaleTo={0.9}><View style={st.playRound}><Icon name="play" size={28} color={colors.accent} /></View></Press>}
           </View>
+          </Deferred>
 
           {/* missions: three tiles, icon + count + reward; tap a full one to claim */}
           {missionsOn ? (
+            <Deferred frames={2}>
             <View style={st.missionTiles}>
               {save.missions.list.map((m, i) => {
                 const ready = !m.claimed && m.progress >= m.target;
@@ -321,6 +324,7 @@ export function HomeScreen() {
                 );
               })}
             </View>
+            </Deferred>
           ) : null}
           {missionsOn && canClaimMissionChest(save) ? <SmallButton label={t('chest_open')} icon="treasure-chest" color={colors.gold} textColor={colors.white} onPress={onMissionChest} testID="mission-chest" /> : null}
         </Sheet>
@@ -330,6 +334,7 @@ export function HomeScreen() {
       {sheet === 'modes' ? (
         <Sheet onClose={() => setSheet(null)} testID="modes-sheet">
           <SheetTitle title={t('modes')} icon={<Icon name="gamepad-variant" size={26} color={colors.accent} />} onClose={() => setSheet(null)} />
+          <Deferred frames={1}>
           <View style={st.modeRow}>
             <Press onPress={() => { setSheet(null); router.push('/quick'); }} style={{ flex: 1 }} scaleTo={0.94} testID="home-quick">
               <View style={[st.modeTile, { backgroundColor: '#F59E0B' }]}>
@@ -354,6 +359,7 @@ export function HomeScreen() {
               </View>
             </Press>
           </View>
+          </Deferred>
         </Sheet>
       ) : null}
 
@@ -366,8 +372,9 @@ export function HomeScreen() {
             <T size={type.label} weight="black" color={colors.accent}>{t('goal_level', { n: save.level + 1, xp: need - save.xp })}</T>
           </View>
           <T size={type.label} weight="black" color={colors.inkSoft}>{t('coming_rewards').toUpperCase()}</T>
-          {comingRewards(save.level, 3).map((r) => (
-            <View key={r.level} style={st.levelRow}>
+          {comingRewards(save.level, 3).map((r, i) => (
+            <Deferred key={r.level} frames={i + 1}>
+            <View style={st.levelRow}>
               <View style={st.levelNum}><T size={type.label} weight="black" color={colors.white}>{String(r.level)}</T></View>
               <View style={st.levelItems}>
                 {r.items.map((it, i) => (
@@ -376,6 +383,7 @@ export function HomeScreen() {
               </View>
               <T size={type.caption} weight="bold" color={colors.inkSoft}>{`${fmt(Math.max(0, totalXpTo(r.level) - totalXpTo(save.level) - save.xp))} XP`}</T>
             </View>
+            </Deferred>
           ))}
         </Sheet>
       ) : null}
@@ -432,10 +440,12 @@ function NavButton({ icon, color, label, value, count, flicker, onPress, testID 
   return (
     <Press onPress={onPress} style={{ flex: 1 }} testID={testID} scaleTo={0.9}>
       <View style={st.navBtn}>
+        {/* every icon sits in the same box in the middle of its button; the streak number and the red count hang
+            beside it without moving it */}
         <View style={st.navIcon}>
-          <Flicker on={!!flicker}><Icon name={icon} size={26} color={color} /></Flicker>
-          {value ? <T size={type.label} weight="black" color={color}>{value}</T> : null}
-          {count ? <Dot count={count} style={st.navDot} /> : null}
+          <Flicker on={!!flicker}><Icon name={icon} size={NAV_ICON} color={color} /></Flicker>
+          {value ? <View style={st.navValue}><T size={type.label} weight="black" color={color}>{value}</T></View> : null}
+          {count ? <Dot style={st.navDot} /> : null}
         </View>
         <T size={type.caption} weight="black" lines={1}>{label}</T>
       </View>
@@ -469,11 +479,12 @@ const MISSION_ICONS: Record<string, { icon: IconName; color: string }> = {
 
 /** A slow flicker for the streak flame. Runs only while home is on screen. */
 function Flicker({ on, children }: { on: boolean; children: React.ReactNode }) {
-  const f = useSharedValue(0);
+  const f = useSharedValue(0.5);
   useEffect(() => {
-    f.value = on ? withRepeat(withSequence(withTiming(1, { duration: 520, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 480, easing: Easing.inOut(Easing.sin) })), -1) : withTiming(0);
+    // at rest (0.5) the icon is upright and its own size, so it lines up with the icons next to it
+    f.value = on ? withRepeat(withSequence(withTiming(1, { duration: 520, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 480, easing: Easing.inOut(Easing.sin) })), -1) : withTiming(0.5);
   }, [on, f]);
-  const a = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * f.value }, { rotate: `${-4 + 8 * f.value}deg` }] }));
+  const a = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * (f.value - 0.5) }, { rotate: `${8 * (f.value - 0.5)}deg` }] }));
   return <Animated.View style={a}>{children}</Animated.View>;
 }
 
@@ -483,6 +494,7 @@ const STAGE_GAP = 10;
 const STAGE_ROW = 44;
 const STAGE_GOAL = 16;
 const PLAY_H = 72;
+const NAV_ICON = 28;
 const STAGE_H = STAGE_PAD * 2 + STAGE_ROW + STAGE_GAP + STAGE_GOAL + STAGE_GAP + PLAY_H + 8;
 
 const make_st = (colors: Palette) => StyleSheet.create({
@@ -496,10 +508,11 @@ const make_st = (colors: Palette) => StyleSheet.create({
   stageIcon: { width: STAGE_ROW, height: STAGE_ROW, borderRadius: radius.md, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   stageStat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   goal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: STAGE_GOAL },
-  nav: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.lg, height: sizes.dock, paddingHorizontal: 4 },
+  nav: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, height: sizes.dock, paddingHorizontal: 4 },
   navBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
-  navIcon: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 28 },
-  navDot: { position: 'absolute', top: -8, right: -24 },
+  navIcon: { width: NAV_ICON, height: NAV_ICON, alignItems: 'center', justifyContent: 'center' },
+  navValue: { position: 'absolute', left: NAV_ICON + 1, bottom: -1 },
+  navDot: { position: 'absolute', top: -1, left: NAV_ICON - 7, right: 'auto' },
   chapterRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   chapterIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   miniStats: { flexDirection: 'row', alignItems: 'center', gap: 3 },
