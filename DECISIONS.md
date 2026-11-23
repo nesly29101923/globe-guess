@@ -226,3 +226,27 @@ Every choice made while building without a reviewer, with one line of reasoning.
   fps whatever the map does (it measures pixel filling, not what a phone does). The claim rests on the measured Skia
   work per frame and on how Skia works; the FPS counter on a real phone is the proof. `tools/perf/` has the scripts.
 - Count badges on the power-up buttons were white on white in dark mode: they use a fixed dark badge colour now.
+
+## Round 10: the menu (iPhone feedback: PLAY confused with the bottom buttons, chapter ribbon the colour of PLAY, drag only on the menu, 61 ms hitch opening the shop)
+- **One loud thing on the menu.** PLAY was a purple pill among a purple ribbon and three big saturated tiles, one of
+  them the same purple: nothing said "this is the button". Now the only saturated block on the screen is PLAY.
+  - The chapter, its stars, the next goal (as a bar that fills) and PLAY sit in one white card: "what is next" and
+    "go" are one group. Tapping the chapter line opens the Journey.
+  - The places to go are a quiet white bar at the bottom (small coloured icon + name), not tiles. A new player still
+    sees no bar at all, only PLAY.
+  - Today (streak flame, number of things waiting) moved from a floating button over the map into that bar: the map
+    is now free of buttons, which matters because it can be dragged.
+- **The map is a toy on the menu, not in the round.** Drag, pinch, double-tap; it glides on when let go and a button
+  (or coming back to the menu) brings it home. In a round the camera belongs to the game: pinch zoom, the magnifier
+  button and the drag are gone there (`useMapZoom` deleted). Tiny countries keep their ring.
+  - It draws from the same images as the round (`src/map/ExploreMap.tsx`). While it moves: a whole-world image
+    painted for the menu's zoom (the fine world image has lines made for close-ups and looked washed out from far);
+    zoomed in past that, the fine image; at rest, an exact view fades in.
+  - The menu map no longer greys out the land outside the chapter's region. It shares the round's world image this
+    way (one 25-45 MB image instead of two), and the framing already says which part of the world the chapter is.
+  - Not done, worth considering: tapping a country on the menu map to see its name and flag. It would make the toy
+    teach, but it also shows answers; left for a decision.
+- **Shop hitch.** The shop built every card of a tab in the frame it opened, and re-rendered at once when the store
+  prices arrived. Cards are now built a row per frame (`Deferred` in `components/ui.tsx`) and prices are asked for
+  after the screen has opened, then remembered. Longest frame while the shop opens for the first time, web build:
+  47 ms -> 21 ms. The same `Deferred` can be used on any screen that hitches when it opens.

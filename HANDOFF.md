@@ -30,6 +30,14 @@ Android, fully offline, no account.
 - `crash-log.cmd` (phone on USB, developer mode on) launches the app and writes `crash-log.txt` via adb.
   `install-test.cmd` installs an APK over USB.
 
+## Round 10 notes (menu)
+
+- Menu: `src/game/HomeScreen.tsx`. The stage card (chapter, goal bar, PLAY) and the bottom bar (`NavButton`).
+  The map behind it: `src/map/ExploreMap.tsx` (drag, pinch, double-tap, glide, `resetKey` to send it home).
+- The round has no zoom any more; `src/map/useMapZoom.ts` and `src/map/StaticMap.tsx` are gone.
+- A screen that hitches when it opens: wrap its rows in `<Deferred frames={row}>` (see `src/app/shop.tsx`).
+  `python3 tools/perf/open_screen.py home-shop` measures the longest frame while a screen opens (web build).
+
 ## Round 9 notes (map performance)
 
 - The round's map: `src/map/raster.ts` paints the land into images (world layer, one view per camera stop);

@@ -19,5 +19,8 @@ number of frames, is the drawing work per frame.
 | outlines every frame (before round 9) | 14.2 ms |
 | images (round 9) | 1.4 ms |
 
+`open_screen.py <testID>` taps a button on the menu four times and prints the longest frame and the script time
+while the screen opens (first open is the expensive one).
+
 Needs Python with Playwright and Google Chrome at `/usr/bin/google-chrome`.
 The real check is the FPS counter on a phone (Settings > FPS counter).

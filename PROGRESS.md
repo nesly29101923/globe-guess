@@ -42,3 +42,7 @@
   DECISIONS.md, `src/map/raster.ts`, `tools/perf/`). Skia work per frame while the camera moves: 14.2 ms -> 1.4 ms in
   the web build. Next: read the FPS counter on the iPhone during flights, the reveal and pinch zoom; check memory on
   a low-end Android (each question holds 1-2 screen-sized images, the world image is 25-45 MB).
+- Round 10: menu rebuilt around one PLAY (stage card + quiet bottom bar), map drag/zoom moved from the round to the
+  menu, shop cards built a row per frame. Next on the phone: FPS counter while dragging the menu map and while
+  opening the shop, Journey and the Today sheet ("last hitch" names the screen).
+
