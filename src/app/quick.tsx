@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QUICK_TOPICS } from '../config/levels';
 import { ScreenHeader } from '../components/hud';
 import { Icon, type IconName } from '../components/Icon';
-import { BigButton, PopIn, Press, T } from '../components/ui';
+import { Deferred, BigButton, PopIn, Press, T } from '../components/ui';
 import { fmt, t, upper } from '../i18n/strings';
 import { useGame } from '../store/store';
 import { layout, radius, shadow, sizes, tierColors, type, type Palette } from '../theme';
@@ -45,7 +45,8 @@ export default function QuickScreen() {
             const sel = topic === q.id;
             const b = best[`quick:${q.id}:${tier}`];
             return (
-              <PopIn key={q.id} delay={i * 20} style={st.cell}>
+              <Deferred key={q.id} frames={Math.floor(i / 2)}>
+              <PopIn style={st.cell}>
                 <Press onPress={() => setTopic(q.id)} testID={`quick-${q.id}`} scaleTo={0.96}>
                   <View style={[st.topic, shadow.soft, { height: tileH }, sel && st.sel]}>
                     <View style={[st.topicIcon, sel && { backgroundColor: colors.accent }]}><Icon name={ICONS[q.id] ?? 'earth'} size={20} color={sel ? colors.white : colors.accent} /></View>
@@ -56,6 +57,7 @@ export default function QuickScreen() {
                   </View>
                 </Press>
               </PopIn>
+              </Deferred>
             );
           })}
         </View>

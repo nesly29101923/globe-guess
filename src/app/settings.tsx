@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/hud';
 import { Icon, type IconName } from '../components/Icon';
 import { SettingsPanel } from '../components/SettingsPanel';
-import { PopIn, Press, T } from '../components/ui';
+import { Deferred, PopIn, Press, T } from '../components/ui';
 import { askPrompt } from '../game/hosts';
 import { t } from '../i18n/strings';
 import { grantProduct } from '../logic/economy';
@@ -39,17 +39,21 @@ export default function SettingsScreen() {
         <PopIn style={[st.card, shadow.soft]}>
           <SettingsPanel />
         </PopIn>
-        <PopIn delay={60} style={[st.card, shadow.soft]}>
+        <Deferred frames={1}>
+        <PopIn style={[st.card, shadow.soft]}>
           <Row icon={restored ? 'check-bold' : 'restore'} label={t('restore')} onPress={restore} testID="settings-restore" />
           <Row icon="shield-account" label={t('privacy_choices')} onPress={() => askPrompt('consent')} testID="settings-consent" />
           <Row icon="file-document" label={t('privacy')} onPress={() => Linking.openURL(PRIVACY_URL)} />
           <Row icon="translate" label={`${t('language')}: English`} onPress={() => {}} />
         </PopIn>
-        <PopIn delay={120} style={[st.card, shadow.soft, { gap: 6 }]}>
+        </Deferred>
+        <Deferred frames={2}>
+        <PopIn style={[st.card, shadow.soft, { gap: 6 }]}>
           <T size={type.label} weight="black">{t('credits')}</T>
           <T size={type.label} weight="semi" color={colors.inkSoft}>{t('credits_text')}</T>
           <T size={type.caption} weight="semi" color={colors.inkSoft}>{t('version', { v: Constants.expoConfig?.version ?? '1.0.0' })}</T>
         </PopIn>
+        </Deferred>
       </ScrollView>
     </View>
   );

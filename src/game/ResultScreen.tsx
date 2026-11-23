@@ -13,7 +13,7 @@ import { Celebration, type CelebrationSpec } from '../components/Celebration';
 import { fx } from '../components/fx';
 import { CoinPill, CountUp, LevelBadge } from '../components/hud';
 import { ShareCard } from '../components/ShareCard';
-import { BigButton, PopIn, Press, ProgressBar, SmallButton, T } from '../components/ui';
+import { Deferred, BigButton, PopIn, Press, ProgressBar, SmallButton, T } from '../components/ui';
 import { Coin, Icon, type IconName } from '../components/Icon';
 import { GridSquares } from '../components/round';
 import { FLAG_IMAGES } from '../data/flagImages';
@@ -253,9 +253,12 @@ export function ResultScreen({ summary, quiz, coinsBefore, primary, secondary, o
           </SlideUp>
         ) : <View style={{ height: sizes.big + sizes.small + 10 }} />}
       </View>
-      <ShareCard ref={shareRef} correct={S.correct} total={S.total} stars={S.stars} results={grid}
-        title={upper(t(quiz.topicLabel === 'usa' ? 'q_state' : quiz.topicLabel === 'flags' ? 'q_flag' : 'q_country'))}
-        subtitle={upper(t(`topic_${quiz.topicLabel}` as never))} />
+      {/* the picture for sharing is built off screen. Not in the frame the result opens: Share appears seconds later */}
+      <Deferred frames={30}>
+        <ShareCard ref={shareRef} correct={S.correct} total={S.total} stars={S.stars} results={grid}
+          title={upper(t(quiz.topicLabel === 'usa' ? 'q_state' : quiz.topicLabel === 'flags' ? 'q_flag' : 'q_country'))}
+          subtitle={upper(t(`topic_${quiz.topicLabel}` as never))} />
+      </Deferred>
       {celebrate ? <Celebration spec={celebrate} onClose={closeCelebration} /> : null}
     </View>
   );

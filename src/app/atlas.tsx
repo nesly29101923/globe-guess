@@ -1,6 +1,6 @@
 // The Atlas: every country, flag and state is a card. One screen: the world filling with colour as the player
 // discovers it, and the regions as tiles. A region opens its cards in a sheet.
-import { Canvas, Group, Path, Rect, LinearGradient, Skia, vec } from '@shopify/react-native-skia';
+import { Canvas, FillType, FilterMode, Group, Image as SkiaImage, LinearGradient, MipmapMode, Path, Rect, Skia, vec } from '@shopify/react-native-skia';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -9,16 +9,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { balance } from '../config/balance';
 import { ScreenHeader } from '../components/hud';
 import { Coin, Icon, type IconName } from '../components/Icon';
-import { PopIn, Press, ProgressBar, Sheet, SheetTitle, T } from '../components/ui';
+import { Deferred, PopIn, Press, ProgressBar, Sheet, SheetTitle, T } from '../components/ui';
 import { FLAG_IMAGES } from '../data/flagImages';
 import { ATLAS_REGIONS, itemName } from '../data/gameData';
 import { t } from '../i18n/strings';
 import { cardKey, masteryOf, regionProgress } from '../logic/atlas';
 import { neutralCam, WRAP } from '../map/camera';
-import { donePath, scopePaths } from '../map/shapes';
+import { menuWorld } from '../map/raster';
+import { itemPath } from '../map/shapes';
+import { useMapTheme } from '../map/useMapTheme';
 import { useGame } from '../store/store';
-import { layout, mapThemes, radius, shadow, type, type Palette } from '../theme';
-import { useIsDark, usePalette, useStyles } from '../theme/usePalette';
+import { layout, radius, shadow, type, type Palette } from '../theme';
+import { usePalette, useStyles } from '../theme/usePalette';
 
 const REGION_ICONS: Record<string, IconName> = {
   europe: 'castle', asia: 'temple-buddhist', africa: 'elephant', americas: 'earth', oceania: 'palm-tree', usa: 'flag-variant', flags: 'flag',
@@ -46,7 +48,12 @@ export default function AtlasScreen() {
       </View>
       <View style={{ width: W, paddingHorizontal: 12, gap: 10, flex: 1, paddingBottom: insets.bottom + 12 }}>
         <PopIn style={[st.mapCard, shadow.card]}>
-          <WorldFill width={W - 24} height={compact ? (W - 24) * 0.42 : (W - 24) * 0.52} ids={discoveredCountries} />
+          {/* the map is painted one frame after the screen, into a card that already has its size */}
+          <View style={{ width: W - 24, height: compact ? (W - 24) * 0.42 : (W - 24) * 0.52 }}>
+            <Deferred frames={1}>
+              <WorldFill width={W - 24} height={compact ? (W - 24) * 0.42 : (W - 24) * 0.52} ids={discoveredCountries} />
+            </Deferred>
+          </View>
           <View style={st.mapLabel}><Icon name="book-open-variant" size={14} color={colors.accent} /><T size={type.label} weight="black">{t('atlas_discovered', { n: Object.keys(save.atlas).length })}</T></View>
         </PopIn>
         <View style={st.tiles}>
@@ -54,7 +61,8 @@ export default function AtlasScreen() {
             const p = regionProgress(save, r.id);
             const complete = p.have >= p.total;
             return (
-              <PopIn key={r.id} delay={i * 30} style={st.tileWrap}>
+              <Deferred key={r.id} frames={Math.floor(i / 2)}>
+              <PopIn style={st.tileWrap}>
                 <Press onPress={() => setOpen(r.id)} testID={`atlas-${r.id}`} scaleTo={0.96}>
                   <View style={[st.tile, shadow.soft, complete && st.tileDone]}>
                     <View style={st.tileHead}>
@@ -69,6 +77,7 @@ export default function AtlasScreen() {
                   </View>
                 </Press>
               </PopIn>
+              </Deferred>
             );
           })}
         </View>
@@ -82,15 +91,18 @@ export default function AtlasScreen() {
           </View>
           {/* a collection to browse: this list is the one place that scrolls, inside its sheet */}
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={st.grid} showsVerticalScrollIndicator={false}>
-            {openP.ids.map((id) => {
+            {openP.ids.map((id, i) => {
               const e = save.atlas[cardKey(openRegion.kind, id)];
               const m = e ? masteryOf(e.days.length) : 0;
               const flag = openRegion.kind !== 'state' ? FLAG_IMAGES[id] : undefined;
               return (
-                <View key={id} style={[st.card, { width: cardW, height: cardW * 1.2 }, !e && st.cardLocked, m === 3 ? st.gold : m === 2 ? st.silver : m === 1 ? st.bronze : null]}>
+                // a region has up to 200 cards: the first rows come with the sheet, the rest a row per frame
+                <Deferred key={id} frames={Math.max(0, Math.floor(i / 6) - 2)}>
+                <View style={[st.card, { width: cardW, height: cardW * 1.2 }, !e && st.cardLocked, m === 3 ? st.gold : m === 2 ? st.silver : m === 1 ? st.bronze : null]}>
                   {e ? (flag ? <Image source={flag} style={{ width: cardW * 0.7, height: cardW * 0.49, borderRadius: 3 }} contentFit="cover" /> : <Icon name="map-marker" size={18} color={colors.accent} />) : <Icon name="help" size={18} color={colors.inkSoft} />}
                   {e ? <T size={8} weight="bold" center lines={1}>{itemName(id)}</T> : null}
                 </View>
+                </Deferred>
               );
             })}
           </ScrollView>
@@ -100,28 +112,34 @@ export default function AtlasScreen() {
   );
 }
 
+/** The world with the discovered countries in green. The land is the menu's whole-world image, already painted
+ *  (nothing is drawn from outlines when the Atlas opens); the discovered countries are one outline on top. */
 function WorldFill({ width, height, ids }: { width: number; height: number; ids: string[] }) {
-  const th = mapThemes[useIsDark() ? 'night' : 'classic'];
-  const paths = useMemo(() => scopePaths('world', 'all', 2), []);
-  const done = useMemo(() => donePath('world', ids, 2), [ids]);
+  const th = useMapTheme();
+  const land = useMemo(() => menuWorld('world', th), [th]);
+  const done = useMemo(() => {
+    const b = Skia.PathBuilder.Make();
+    for (const id of ids) {
+      const p = itemPath('world', id, 2);
+      if (p) b.addPath(p);
+    }
+    return b.setFillType(FillType.EvenOdd).detach();
+  }, [ids]);
   const cam = neutralCam('world');
-  const s = Math.max(width / (WRAP * 0.98), height / (WRAP * 0.62));
-  const m = useMemo(() => {
-    const mx = Skia.Matrix();
-    mx.translate(width / 2 - cam.ux * s + 10, height * 0.56 - cam.uy * s);
-    mx.scale(s, s);
-    return mx;
-  }, [width, height, cam.ux, cam.uy, s]);
+  const s = Math.max(width / (WRAP * 0.98), height / (WRAP * 0.62)); // points per map unit
+  const transform = [{ translateX: width / 2 + 10 - cam.ux * s }, { translateY: height * 0.56 - cam.uy * s }, { scale: s }];
   return (
     <Canvas style={{ width, height, borderRadius: radius.lg }}>
       <Rect x={0} y={0} width={width} height={height}>
         <LinearGradient start={vec(0, 0)} end={vec(0, height)} colors={[th.seaTop, th.seaBottom]} />
       </Rect>
-      <Group matrix={m}>
-        <Path path={paths.other} color={th.other} />
-        <Path path={paths.scope} color={th.land} />
-        <Path path={paths.scope} color={th.landEdge} style="stroke" strokeWidth={0.6 / s} />
-        <Path path={done} color={th.correct} opacity={0.75} />
+      <Group transform={transform}>
+        {[-WRAP, 0, WRAP].map((dx) => (
+          <Group key={dx} transform={[{ translateX: dx }]}>
+            {land ? <SkiaImage image={land.image} x={land.x} y={land.y} width={land.w} height={land.h} fit="fill" sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.Linear }} /> : null}
+            <Path path={done} color={th.correct} opacity={0.75} />
+          </Group>
+        ))}
       </Group>
     </Canvas>
   );

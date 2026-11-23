@@ -11,7 +11,7 @@ import { balance } from '../config/balance';
 import { CHAPTERS, LEVELS, type LevelDef } from '../config/levels';
 import { HeartsPill, IconButton, ScreenHeader, StatPill } from '../components/hud';
 import { Coin, Icon, type IconName } from '../components/Icon';
-import { BigButton, Press, ProgressBar, Sheet, SheetTitle, SmallButton, T } from '../components/ui';
+import { BigButton, Deferred, Press, ProgressBar, Sheet, SheetTitle, SmallButton, T } from '../components/ui';
 import { fmtTime, t } from '../i18n/strings';
 import { buy } from '../logic/economy';
 import { chapterLock, chapterStars, currentLevel, heartsNow, isLevelOpen, refillHearts, totalStars } from '../logic/journey';
@@ -86,8 +86,16 @@ export default function JourneyScreen() {
   const chapters = useMemo(() => CHAPTERS.map((_, i) => i), []);
   const pageCh = CHAPTERS[page];
   const pageLock = chapterLock(save, page);
+  // The pages get the same two functions for the life of the screen, so a page only renders again when something
+  // it shows has changed. (With new functions every time, each swipe re-rendered every page and all its levels.)
+  const startRef = useRef(start);
+  startRef.current = start;
+  const goRef = useRef(go);
+  goRef.current = go;
+  const onStart = useCallback((l: LevelDef) => startRef.current(l), []);
+  const onGo = useCallback((i: number) => goRef.current(i), []);
   const renderPage = useCallback(({ item: ci }: { item: number }) => (
-    <ChapterPage ci={ci} width={SW} height={pageH} save={save} cur={cur} onStart={start} onPrev={() => go(ci - 1)} onNext={() => go(ci + 1)} active={focused && ci === page} />
+    <ChapterPage ci={ci} width={SW} height={pageH} save={save} curId={cur.id} onStart={onStart} onGo={onGo} active={focused && ci === page} />
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ), [SW, pageH, save, cur.id, focused, page]);
 
@@ -153,9 +161,9 @@ export default function JourneyScreen() {
   );
 }
 
-function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, active }: {
-  ci: number; width: number; height: number; save: ReturnType<typeof useGame.getState>['save']; cur: LevelDef;
-  onStart: (l: LevelDef) => void; onPrev: () => void; onNext: () => void; active: boolean;
+const ChapterPage = React.memo(function ChapterPage({ ci, width, height, save, curId, onStart, onGo, active }: {
+  ci: number; width: number; height: number; save: ReturnType<typeof useGame.getState>['save']; curId: string;
+  onStart: (l: LevelDef) => void; onGo: (i: number) => void; active: boolean;
 }) {
   const colors = usePalette();
   const st = useStyles(make_st);
@@ -179,7 +187,7 @@ function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, ac
       <View style={{ width: W, height }}>
         {/* chapter card with arrows to the neighbours */}
         <View style={[st.chapter, shadow.soft, { width: W - 24, height: cardH }, !lock.open && st.lockedCard]}>
-          <Press onPress={onPrev} disabled={ci === 0} testID={`chapter-prev-${ci}`}>
+          <Press onPress={() => onGo(ci - 1)} disabled={ci === 0} testID={`chapter-prev-${ci}`}>
             <View style={[st.arrow, ci === 0 && { opacity: 0.2 }]}><Icon name="chevron-left-circle" size={30} color={colors.accent} /></View>
           </Press>
           <View style={st.chapterIcon}><Icon name={lock.open ? (c.icon as IconName) : 'lock'} size={26} color={lock.open ? colors.accent : colors.inkSoft} /></View>
@@ -192,7 +200,7 @@ function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, ac
               <View style={{ flex: 1, marginLeft: 6 }}><ProgressBar value={cs.have / cs.max} color={colors.gold} height={5} /></View>
             </View>
           </View>
-          <Press onPress={onNext} disabled={ci === CHAPTERS.length - 1} testID={`chapter-next-${ci}`}>
+          <Press onPress={() => onGo(ci + 1)} disabled={ci === CHAPTERS.length - 1} testID={`chapter-next-${ci}`}>
             <View style={[st.arrow, ci === CHAPTERS.length - 1 && { opacity: 0.2 }]}><Icon name="chevron-right-circle" size={30} color={colors.accent} /></View>
           </Press>
         </View>
@@ -200,24 +208,29 @@ function ChapterPage({ ci, width, height, save, cur, onStart, onPrev, onNext, ac
         <View style={[st.pageDots, { top: cardH + 18 }]} pointerEvents="none">
           {CHAPTERS.map((_, i) => <View key={i} style={[st.pageDot, i === ci && st.pageDotOn]} />)}
         </View>
-        {/* path */}
-        {pos.map((p, i) => {
-          const n = pos[i + 1];
-          if (!n) return null;
-          const done = (save.journey.stars[levels[i].id] ?? 0) > 0;
-          return <Segment key={`s${i}`} x1={p.x + node / 2} y1={p.y + node / 2} x2={n.x + node / 2} y2={n.y + node / 2} done={done} />;
-        })}
+        {/* path: built from the bottom up over a few frames (each level has its place already, nothing moves) */}
+        <Deferred frames={1}>
+          {pos.map((p, i) => {
+            const n = pos[i + 1];
+            if (!n) return null;
+            const done = (save.journey.stars[levels[i].id] ?? 0) > 0;
+            return <Segment key={`s${i}`} x1={p.x + node / 2} y1={p.y + node / 2} x2={n.x + node / 2} y2={n.y + node / 2} done={done} />;
+          })}
+        </Deferred>
         {levels.map((l, i) => (
-          <View key={l.id} style={[st.nodeWrap, { left: pos[i].x, top: pos[i].y, width: node }]}>
-            <Node size={node} level={l} stars={save.journey.stars[l.id] ?? 0} open={isLevelOpen(save, l)} current={l.id === cur.id} active={active} onPress={() => onStart(l)} />
-          </View>
+          <Deferred key={l.id} frames={1 + Math.floor(i / 4)}>
+            <View style={[st.nodeWrap, { left: pos[i].x, top: pos[i].y, width: node }]}>
+              <Node size={node} level={l} stars={save.journey.stars[l.id] ?? 0} open={isLevelOpen(save, l)} current={l.id === curId} active={active && l.id === curId} onStart={onStart} />
+            </View>
+          </Deferred>
         ))}
       </View>
     </View>
   );
-}
+});
 
-function Node({ size: base, level, stars, open, current, active, onPress }: { size: number; level: LevelDef; stars: number; open: boolean; current: boolean; active: boolean; onPress: () => void }) {
+const Node = React.memo(function Node({ size: base, level, stars, open, current, active, onStart }: { size: number; level: LevelDef; stars: number; open: boolean; current: boolean; active: boolean; onStart: (l: LevelDef) => void }) {
+  const onPress = () => onStart(level);
   const colors = usePalette();
   const st = useStyles(make_st);
   const p = useSharedValue(1);
@@ -240,7 +253,7 @@ function Node({ size: base, level, stars, open, current, active, onPress }: { si
       {level.boss && stars === 0 ? <View style={st.chestTag}><Icon name="treasure-chest" size={22} color={colors.goldDark} /></View> : null}
     </Animated.View>
   );
-}
+});
 
 function Segment({ x1, y1, x2, y2, done }: { x1: number; y1: number; x2: number; y2: number; done: boolean }) {
   const colors = usePalette();
