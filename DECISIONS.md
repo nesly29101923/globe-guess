@@ -292,3 +292,12 @@ Every choice made while building without a reviewer, with one line of reasoning.
 - `upper()` asked the phone for its locale (a native call) for every capital-letter label on every render. Asked once.
 - What this cannot show: the numbers are from the web build. On the phone the FPS counter's "last hitch" line names
   the screen; that is the list to work from next.
+
+## Sound next to the player's own music (2026-11-24)
+
+- Effects keep the ambient session (silent switch mutes the game; Spotify and podcasts keep playing under our
+  effects). Menu music now stays off while another app plays music and comes back when it stops, using the
+  `modules/other-audio` native module shared with Jigsaw (iOS: `secondaryAudioShouldBeSilencedHint`; Android:
+  `isMusicActive`, checked only while our music is paused).
+- After a rewarded or interstitial ad closes, the audio session is set back to ambient: the ads SDK switches it
+  for video ads, and left that way our next effect would stop the player's music.

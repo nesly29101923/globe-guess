@@ -5,6 +5,7 @@ import Purchases from 'react-native-purchases';
 import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { PRODUCTS } from '../config/cosmetics';
 import { KEYS } from '../config/keys';
+import { restoreAudioSession } from '../feedback/sfx';
 import { setAdsProvider, type AdsProvider, type Placement } from './ads';
 import { setPurchasesProvider, type PurchasesProvider } from './purchases';
 
@@ -42,6 +43,8 @@ class AdMobProvider implements AdsProvider {
         offClose();
         this.rewardedLoaded = false;
         this.rewarded.load();
+        // The ads SDK switches the audio session for video ads; put ours back so the player's music keeps mixing.
+        void restoreAudioSession();
         resolve(earned);
       });
       this.rewarded.show().catch(() => resolve(false));
@@ -54,6 +57,7 @@ class AdMobProvider implements AdsProvider {
         off();
         this.interstitialLoaded = false;
         this.interstitial.load();
+        void restoreAudioSession();
         resolve();
       });
       this.interstitial.show().catch(() => resolve());

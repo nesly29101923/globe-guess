@@ -1,5 +1,7 @@
 // Sounds: preloaded once, played instantly. Respects the sound setting.
+import { AppState } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { onOtherAudioChange, otherAudioPlaying } from '../../modules/other-audio';
 import { useGame } from '../store/store';
 
 const SOURCES = {
@@ -45,14 +47,34 @@ const players: Partial<Record<Sfx, AudioPlayer[]>> = {};
 const cursor: Partial<Record<Sfx, number>> = {};
 let loaded = false;
 
-export async function preloadSounds() {
-  if (loaded) return;
-  loaded = true;
+/**
+ * Ambient session: obeys the silent switch and mixes with the player's own music (Spotify, podcasts),
+ * so our effects play over it instead of stopping it.
+ */
+export async function restoreAudioSession() {
   try {
     await setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
   } catch {
     /* web or unsupported */
   }
+}
+
+export async function preloadSounds() {
+  if (loaded) return;
+  loaded = true;
+  await restoreAudioSession();
+  // While another app plays music, our menu music stays off and comes back when theirs stops.
+  otherAudio = otherAudioPlaying();
+  onOtherAudioChange((playing) => {
+    otherAudio = playing;
+    setMenuMusic(musicWanted);
+  });
+  AppState.addEventListener('change', (state) => {
+    if (state !== 'active') return music?.pause();
+    // Checked before our music restarts: Android counts our own playback too.
+    otherAudio = otherAudioPlaying();
+    setMenuMusic(musicWanted);
+  });
   for (const k of Object.keys(SOURCES) as Sfx[]) {
     const n = POOL[k] ?? 1;
     players[k] = [];
@@ -96,9 +118,14 @@ export function play(k: Sfx) {
 const REWIND_AFTER_MS: Partial<Record<Sfx, number>> = { tick: 230, tock: 230, tap: 120, pop: 120, count: 60, coin_0: 220, coin_1: 220, coin_2: 220, card: 320 };
 
 let music: AudioPlayer | null = null;
-/** Light menu music, only when the player turned it on (off by default). */
+/** Whether the home screen asked for music (it still needs the setting on and no other app playing). */
+let musicWanted = false;
+let otherAudio = false;
+/** Light menu music, only when the player turned it on (off by default) and isn't listening to their own. */
 export function setMenuMusic(on: boolean) {
-  const want = on && useGame.getState().save.settings.music;
+  musicWanted = on;
+  if (on && !music?.playing) otherAudio = otherAudioPlaying();
+  const want = on && useGame.getState().save.settings.music && !otherAudio;
   try {
     if (want) {
       if (!music) {
